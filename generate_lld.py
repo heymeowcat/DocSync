@@ -6,13 +6,14 @@ from docx import Document
 import difflib
 import logging
 import torch
+import re
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Load T5 model for text generation
-model_name = "google/flan-t5-small"
+model_name = "google/flan-t5-small"  # Use a larger model for better output
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 model = T5ForConditionalGeneration.from_pretrained(model_name)
 
@@ -20,32 +21,53 @@ model = T5ForConditionalGeneration.from_pretrained(model_name)
 device = "mps" if torch.backends.mps.is_available() else "cpu"
 model.to(device)
 
-def generate_lld_content(code_changes, commit_info):
-    """Generate LLD content using T5 model"""
-    prompt = f"""Generate a Low-Level Design (LLD) section based on these code changes:
-    Commit Message: {commit_info['message']}
-    Author: {commit_info['author']}
-    File Changes: {json.dumps(code_changes)}
+def generate_folder_structure(repo_path):
+    """Generate a text representation of the folder and file structure, excluding .gitignored files."""
+    repo = Repo(repo_path)
+    tracked_files = repo.git.ls_files().split('\n')
+    untracked_files = repo.git.ls_files('--others', '--exclude-standard').split('\n')
+    all_files = tracked_files + untracked_files
     
-    Provide detailed design insights, focusing on:
-    - Module purpose
-    - Responsibilities
-    - Key algorithmic changes
-    - Potential performance implications
+    structure = {}
+    for file_path in all_files:
+        if not file_path.strip():
+            continue
+        parts = file_path.split('/')
+        current_level = structure
+        for part in parts:
+            if part not in current_level:
+                current_level[part] = {}
+            current_level = current_level[part]
+    
+    def build_text(struct, indent=0):
+        text = ''
+        for key, value in struct.items():
+            text += ' ' * indent + key + '/\n'
+            if value:
+                text += build_text(value, indent + 2)
+        return text
+    
+    return build_text(structure)
+
+def generate_tldr(file_content, file_path):
+    """Generate a TLDR (summary) for a given file content using the T5 model."""
+    prompt = f"""Summarize the content of the following file:
+    File Path: {file_path}
+    File Content: {file_content}
     """
     
-    # Tokenize the prompt
-    inputs = tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True).to(device)
-    
-    # Generate LLD content
+    inputs = tokenizer(prompt, return_tensors="pt", max_length=2048, truncation=True).to(device)
     outputs = model.generate(**inputs, max_length=300, num_return_sequences=1)
-    lld_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    return lld_text
+    tldr_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return tldr_text
 
-def get_commit_hashes(repo_path):
-    repo = Repo(repo_path)
-    return [str(commit) for commit in list(repo.iter_commits())]
+def generate_lld_section(prompt):
+    """Generate LLD section content using T5 model"""
+    inputs = tokenizer(prompt, return_tensors="pt", max_length=2048, truncation=True).to(device)
+    outputs = model.generate(**inputs, max_length=1000, num_return_sequences=1)
+    raw_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    filtered_text = re.sub(r'<.*?>', '', raw_text).strip()
+    return filtered_text
 
 def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=None):
     repo = Repo(repo_path)
@@ -94,23 +116,23 @@ def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=No
                     blob_old = old_commit_obj.tree[d.a_path]
                     blob_new = new_commit_obj.tree[d.a_path]
                     
-                    old_content = blob_old.data_stream.read().decode('utf-8', errors='ignore').splitlines()
-                    new_content = blob_new.data_stream.read().decode('utf-8', errors='ignore').splitlines()
+                    old_content = blob_old.data_stream.read().decode('utf-8', errors='ignore')
+                    new_content = blob_new.data_stream.read().decode('utf-8', errors='ignore')
                     
                     diff_lines = list(difflib.unified_diff(
-                        old_content, 
-                        new_content, 
+                        old_content.splitlines(), 
+                        new_content.splitlines(), 
                         fromfile=f'a/{d.a_path}', 
                         tofile=f'b/{d.a_path}'
                     ))
                     
-                    # Generate LLD for this specific change
-                    lld_section = generate_lld_content(file_change, entry)
+                    # Generate TLDR for this specific change
+                    tldr_section = generate_tldr(new_content, d.a_path)
                     
                     diffs.append({
                         'file': d.a_path,
                         'diff_content': diff_lines,
-                        'lld_section': lld_section
+                        'tldr_section': tldr_section
                     })
                 except KeyError as e:
                     logger.warning(f"File {d.a_path} not found in commit {commit.hexsha}: {e}")
@@ -121,6 +143,25 @@ def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=No
         entry['diffs'] = diffs
         detailed_entries.append(entry)
     
+    # Combine TLDRs
+    combined_tldrs = "\n\n".join([diff['tldr_section'] for entry in detailed_entries for diff in entry.get('diffs', [])])
+    
+    # Generate LLD sections using T5 model
+    lld_sections = {}
+    lld_sections['introduction'] = generate_lld_section(f"Generate an introduction for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['system_overview'] = generate_lld_section(f"Generate a system overview for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['detailed_design'] = generate_lld_section(f"Generate a detailed design section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['data_design'] = generate_lld_section(f"Generate a data design section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['interface_design'] = generate_lld_section(f"Generate an interface design section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['algorithm_design'] = generate_lld_section(f"Generate an algorithm design section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['security_design'] = generate_lld_section(f"Generate a security design section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['error_handling_and_logging'] = generate_lld_section(f"Generate an error handling and logging section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['performance_considerations'] = generate_lld_section(f"Generate a performance considerations section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['testing_and_validation'] = generate_lld_section(f"Generate a testing and validation section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['deployment_considerations'] = generate_lld_section(f"Generate a deployment considerations section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['assumptions_and_dependencies'] = generate_lld_section(f"Generate an assumptions and dependencies section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    lld_sections['appendix'] = generate_lld_section(f"Generate an appendix section for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
+    
     # Create LLD document
     if not lld_path:
         lld_path = os.path.join(repo_path, 'project_lld.docx')
@@ -128,94 +169,45 @@ def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=No
     doc = Document()
     doc.add_heading('Low-Level Design (LLD) Document', 0)
     
-    # Introduction
+    # Add generated sections to the document
     doc.add_heading('1. Introduction', level=1)
-    doc.add_paragraph('1.1 Purpose\nExplain the purpose of the LLD document.')
-    doc.add_paragraph('1.2 Scope\nDefine the scope of the LLD, including what aspects of the system will be covered.')
-    doc.add_paragraph('1.3 Audience\nIdentify the intended audience for this document.')
-    doc.add_paragraph('1.4 References\nList any documents, standards, or guidelines that are referenced in this document.')
+    doc.add_paragraph(lld_sections['introduction'])
     
-    # System Overview
     doc.add_heading('2. System Overview', level=1)
-    doc.add_paragraph('2.1 System Description\nProvide a brief overview of the system, including its purpose and functionality.')
-    doc.add_paragraph('2.2 System Context\nDescribe how the system fits into the larger business or technical environment.')
+    doc.add_paragraph(lld_sections['system_overview'])
     
-    # Detailed Design
     doc.add_heading('3. Detailed Design', level=1)
-    doc.add_paragraph('3.1 Module Descriptions\nDescribe each module in detail, including its purpose and functionality.')
-    doc.add_paragraph('3.2 Class Diagrams\nProvide class diagrams that detail the structure of each module.')
-    doc.add_paragraph('3.3 Sequence Diagrams\nInclude sequence diagrams that illustrate the interactions between objects for various scenarios.')
-    doc.add_paragraph('3.4 State Diagrams\nProvide state diagrams that describe the state changes of important objects.')
-    doc.add_paragraph('3.5 Activity Diagrams\nInclude activity diagrams to show the workflow and operations within the system.')
+    doc.add_paragraph(lld_sections['detailed_design'])
     
-    # Data Design
     doc.add_heading('4. Data Design', level=1)
-    doc.add_paragraph('4.1 Data Structures\nDescribe the data structures used in the system, including data types and relationships.')
-    doc.add_paragraph('4.2 Database Design\nDetail the database design, including tables, columns, keys, and relationships.')
-    doc.add_paragraph('4.3 Data Flow\nDescribe how data moves through the system at a detailed level.')
+    doc.add_paragraph(lld_sections['data_design'])
     
-    # Interface Design
     doc.add_heading('5. Interface Design', level=1)
-    doc.add_paragraph('5.1 User Interface\nProvide detailed designs for the user interface, including screen layouts, elements, and behaviors.')
-    doc.add_paragraph('5.2 External Interfaces\nDescribe the design of external interfaces, such as APIs, including request and response formats.')
-    doc.add_paragraph('5.3 Interface Contracts\nDetail the contracts for each interface, including input and output specifications.')
+    doc.add_paragraph(lld_sections['interface_design'])
     
-    # Algorithm Design
     doc.add_heading('6. Algorithm Design', level=1)
-    doc.add_paragraph('6.1 Algorithms\nDescribe the algorithms used in the system, including pseudocode or flowcharts.')
-    doc.add_paragraph('6.2 Complexity Analysis\nProvide an analysis of the complexity of each algorithm.')
+    doc.add_paragraph(lld_sections['algorithm_design'])
     
-    # Security Design
     doc.add_heading('7. Security Design', level=1)
-    doc.add_paragraph('7.1 Security Measures\nDetail the security measures implemented at a detailed level, such as encryption methods and access controls.')
-    doc.add_paragraph('7.2 Authentication and Authorization\nDescribe the mechanisms for authentication and authorization in detail.')
-    doc.add_paragraph('7.3 Data Protection\nDetail how data is protected at rest and in transit.')
+    doc.add_paragraph(lld_sections['security_design'])
     
-    # Error Handling and Logging
     doc.add_heading('8. Error Handling and Logging', level=1)
-    doc.add_paragraph('8.1 Error Handling\nDescribe how errors are handled at a detailed level, including specific error messages and recovery procedures.')
-    doc.add_paragraph('8.2 Logging\nDetail the logging strategy, including log formats, levels, and storage.')
+    doc.add_paragraph(lld_sections['error_handling_and_logging'])
     
-    # Performance Considerations
     doc.add_heading('9. Performance Considerations', level=1)
-    doc.add_paragraph('9.1 Performance Optimization\nDetail the strategies for optimizing performance, including specific techniques used.')
-    doc.add_paragraph('9.2 Load Handling\nDescribe how the system handles load, including load balancing and resource management.')
+    doc.add_paragraph(lld_sections['performance_considerations'])
     
-    # Testing and Validation
     doc.add_heading('10. Testing and Validation', level=1)
-    doc.add_paragraph('10.1 Unit Testing\nDescribe the unit testing strategy, including test cases and tools used.')
-    doc.add_paragraph('10.2 Integration Testing\nDetail the integration testing approach, including scenarios and tools.')
-    doc.add_paragraph('10.3 Validation\nDescribe how the system will be validated against requirements.')
+    doc.add_paragraph(lld_sections['testing_and_validation'])
     
-    # Deployment Considerations
     doc.add_heading('11. Deployment Considerations', level=1)
-    doc.add_paragraph('11.1 Deployment Architecture\nDetail the deployment architecture, including environments and configurations.')
-    doc.add_paragraph('11.2 Deployment Process\nDescribe the process for deploying the system, including steps and tools.')
+    doc.add_paragraph(lld_sections['deployment_considerations'])
     
-    # Assumptions and Dependencies
     doc.add_heading('12. Assumptions and Dependencies', level=1)
-    doc.add_paragraph('12.1 Assumptions\nList any assumptions made during the design process.')
-    doc.add_paragraph('12.2 Dependencies\nIdentify any dependencies on other systems, components, or technologies.')
+    doc.add_paragraph(lld_sections['assumptions_and_dependencies'])
     
-    # Appendix
     doc.add_heading('13. Appendix', level=1)
-    doc.add_paragraph('13.1 Glossary\nProvide a glossary of terms used in the document.')
-    doc.add_paragraph('13.2 Acronyms\nList and define any acronyms used in the document.')
-    doc.add_paragraph('13.3 Document History\nInclude a version history of the document, noting changes and updates.')
-    
-    for entry in detailed_entries:
-        doc.add_heading(f'Commit: {entry["commit_hash"]}', level=1)
-        doc.add_paragraph(f'Message: {entry["message"]}')
-        doc.add_paragraph(f'Author: {entry["author"]} <{entry["email"]}>')
-        doc.add_paragraph(f'Date: {entry["date"]}')
-        
-        for diff in entry.get('diffs', []):
-            doc.add_heading(f'File: {diff["file"]}', level=2)
-            doc.add_paragraph('Changes:')
-            doc.add_paragraph('\n'.join(diff['diff_content']))
-            
-            doc.add_heading('LLD Insights', level=3)
-            doc.add_paragraph(diff['lld_section'])
+    doc.add_paragraph(lld_sections['appendix'])
     
     doc.save(lld_path)
     
@@ -224,31 +216,202 @@ def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=No
         'lld_path': lld_path
     }
 
+
+def generate_lld_from_directory(repo_path, lld_path=None):
+    folder_structure = generate_folder_structure(repo_path)
+    prompt = f"""Identify the key files and folders that are important for the Low-Level Design (LLD) document. List the file paths only.
+
+    {folder_structure}
+    """
+    important_files_prompt = generate_lld_section(prompt)
+    
+    # Extract important files from model response
+    important_files = [line.strip() for line in important_files_prompt.split('\n') if line.strip()]
+    
+    summaries = {}
+    for file_path in important_files:
+        full_path = os.path.join(repo_path, file_path)
+        if os.path.isfile(full_path):
+            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            summary = generate_tldr(content, file_path)
+            summaries[file_path] = summary
+            print(f"Summary for {file_path}:\n{summary}\n")
+    
+    combined_tldrs = "\n\n".join(summaries.values())
+    project_summary = generate_lld_section(f"Summarize the entire project based on these file summaries:\n{combined_tldrs}")
+    print(f"Project Summary:\n{project_summary}\n")
+    
+    lld_sections = {}
+    lld_sections['introduction'] = generate_lld_section(f"""Write a detailed introduction for the LLD document. 
+    Include the purpose of the document, the scope of the system being designed, 
+    and an overview of the components covered, based on this project summary:
+    {project_summary}
+    """)
+    
+    lld_sections['system_overview'] = generate_lld_section(f"""Provide a comprehensive system overview for the LLD document. 
+    Describe the overall architecture, main components, their interactions, data flows, 
+    key functionalities, and the operating environment, based on this project summary:
+    {project_summary}
+    """)
+
+    lld_sections['detailed_design'] = generate_lld_section(f"""Provide a detailed design for the LLD document. 
+    Describe the internal structure of each component, including classes, modules, and their relationships. 
+    Explain the design patterns used, and provide detailed diagrams where applicable. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['data_design'] = generate_lld_section(f"""Provide a detailed data design for the LLD document. 
+    Describe the data models, database schema, data storage solutions, and data flow diagrams. 
+    Explain how data is managed, stored, and retrieved within the system. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['interface_design'] = generate_lld_section(f"""Provide a detailed interface design for the LLD document. 
+    Describe the user interfaces, API endpoints, and communication protocols. 
+    Explain how different components interact with each other and with external systems. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['algorithm_design'] = generate_lld_section(f"""Provide a detailed algorithm design for the LLD document. 
+    Describe the key algorithms used in the system, including their complexity, flowcharts, and pseudocode. 
+    Explain how these algorithms contribute to the system's functionality. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['security_design'] = generate_lld_section(f"""Provide a detailed security design for the LLD document. 
+    Describe the security measures implemented, including authentication, authorization, encryption, and data protection. 
+    Explain how security is integrated into the system's architecture. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['error_handling_and_logging'] = generate_lld_section(f"""Provide a detailed error handling and logging design for the LLD document. 
+    Describe how errors are detected, handled, and logged within the system. 
+    Explain the logging mechanisms and how they contribute to system monitoring and debugging. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['performance_considerations'] = generate_lld_section(f"""Provide a detailed performance considerations section for the LLD document. 
+    Describe the performance metrics, optimization techniques, and load balancing strategies. 
+    Explain how performance is monitored and improved within the system. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['testing_and_validation'] = generate_lld_section(f"""Provide a detailed testing and validation section for the LLD document. 
+    Describe the testing strategies, test cases, and validation processes. 
+    Explain how the system is tested for correctness, reliability, and performance. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['deployment_considerations'] = generate_lld_section(f"""Provide a detailed deployment considerations section for the LLD document. 
+    Describe the deployment strategy, environment setup, and deployment pipelines. 
+    Explain how the system is deployed and maintained in different environments. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['assumptions_and_dependencies'] = generate_lld_section(f"""Provide a detailed assumptions and dependencies section for the LLD document. 
+    List and describe the key assumptions made during the design and development of the system. 
+    Identify and explain the external dependencies and their impact on the system. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    lld_sections['appendix'] = generate_lld_section(f"""Provide an appendix section for the LLD document. 
+    Include any additional information, diagrams, tables, or references that support the design and implementation of the system. 
+    Use this project summary as a reference:
+    {project_summary}
+    """)
+
+    if not lld_path:
+        lld_path = os.path.join(repo_path, 'project_lld.docx')
+    
+    doc = Document()
+    doc.add_heading('Low-Level Design (LLD) Document', 0)
+    
+    # Add generated sections to the document
+    doc.add_heading('1. Introduction', level=1)
+    doc.add_paragraph(lld_sections['introduction'])
+    
+    doc.add_heading('2. System Overview', level=1)
+    doc.add_paragraph(lld_sections['system_overview'])
+    
+    doc.add_heading('3. Detailed Design', level=1)
+    doc.add_paragraph(lld_sections['detailed_design'])
+    
+    doc.add_heading('4. Data Design', level=1)
+    doc.add_paragraph(lld_sections['data_design'])
+    
+    doc.add_heading('5. Interface Design', level=1)
+    doc.add_paragraph(lld_sections['interface_design'])
+    
+    doc.add_heading('6. Algorithm Design', level=1)
+    doc.add_paragraph(lld_sections['algorithm_design'])
+    
+    doc.add_heading('7. Security Design', level=1)
+    doc.add_paragraph(lld_sections['security_design'])
+    
+    doc.add_heading('8. Error Handling and Logging', level=1)
+    doc.add_paragraph(lld_sections['error_handling_and_logging'])
+    
+    doc.add_heading('9. Performance Considerations', level=1)
+    doc.add_paragraph(lld_sections['performance_considerations'])
+    
+    doc.add_heading('10. Testing and Validation', level=1)
+    doc.add_paragraph(lld_sections['testing_and_validation'])
+    
+    doc.add_heading('11. Deployment Considerations', level=1)
+    doc.add_paragraph(lld_sections['deployment_considerations'])
+    
+    doc.add_heading('12. Assumptions and Dependencies', level=1)
+    doc.add_paragraph(lld_sections['assumptions_and_dependencies'])
+    
+    doc.add_heading('13. Appendix', level=1)
+    doc.add_paragraph(lld_sections['appendix'])
+    
+    doc.save(lld_path)
+    return lld_path
+
 def main():
-    repo_path = input("Enter the path to the Git repository: ")
-    repo = Repo(repo_path)
+    project_path = input("Enter the path to the project directory: ")
+    action = input("Choose an action:\n1. Create New LLD\n2. Update Existing LLD\nEnter the number of your choice: ")
     
-    branches = [branch.name for branch in repo.branches]
-    print("Available branches:")
-    for i, branch in enumerate(branches):
-        print(f"{i + 1}. {branch}")
-    
-    branch_index = int(input("Select a branch by number: ")) - 1
-    selected_branch = branches[branch_index]
-    
-    commits = list(repo.iter_commits(selected_branch))
-    print("Available commits:")
-    for i, commit in enumerate(commits):
-        print(f"{i + 1}. {commit.hexsha} - {commit.message.strip()}")
-    
-    from_commit_index = int(input("Select the 'from' commit by number: ")) - 1
-    to_commit_index = int(input("Select the 'to' commit by number: ")) - 1
-    
-    from_commit = commits[from_commit_index].hexsha
-    to_commit = commits[to_commit_index].hexsha
-    
-    generate_detailed_commit_info(repo_path, from_commit, to_commit)
-    print("LLD document generated successfully.")
+    if action == '1':
+        lld_path = generate_lld_from_directory(project_path)
+        print(f"New LLD document created at {lld_path}")
+    elif action == '2':
+        repo = Repo(project_path)
+        branches = [branch.name for branch in repo.branches]
+        print("Available branches:")
+        for i, branch in enumerate(branches):
+            print(f"{i + 1}. {branch}")
+        
+        branch_index = int(input("Select a branch by number: ")) - 1
+        selected_branch = branches[branch_index]
+        
+        commits = list(repo.iter_commits(selected_branch))
+        print("Available commits:")
+        for i, commit in enumerate(commits):
+            print(f"{i + 1}. {commit.hexsha} - {commit.message.strip()}")
+        
+        from_commit_index = int(input("Select the 'from' commit by number: ")) - 1
+        to_commit_index = int(input("Select the 'to' commit by number: ")) - 1
+        
+        from_commit = commits[from_commit_index].hexsha
+        to_commit = commits[to_commit_index].hexsha
+        
+        generate_detailed_commit_info(project_path, from_commit, to_commit)
+        print("LLD document updated successfully.")
+    else:
+        print("Invalid choice.")
 
 if __name__ == '__main__':
     main()
