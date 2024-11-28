@@ -1,28 +1,29 @@
 import os
+from os.path import join, dirname
+from dotenv import load_dotenv
 import json
 from git import Repo
-from transformers import T5ForConditionalGeneration, T5Tokenizer
 from docx import Document
 import difflib
 import logging
 import torch
 import re
+from openai import OpenAI
 
-# Set up logging
+dotenv_path = join(dirname(__file__), '.env')
+load_dotenv(dotenv_path)
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Load T5 model for text generation
-model_name = "google/flan-t5-small"  # Use a larger model for better output
-tokenizer = T5Tokenizer.from_pretrained(model_name)
-model = T5ForConditionalGeneration.from_pretrained(model_name)
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ.get("OPENROUTER_API_KEY"),
+)
 
-# Use MPS (Metal Performance Shaders) backend if available
 device = "mps" if torch.backends.mps.is_available() else "cpu"
-model.to(device)
 
 def generate_folder_structure(repo_path):
-    """Generate a text representation of the folder and file structure, excluding .gitignored files."""
     repo = Repo(repo_path)
     tracked_files = repo.git.ls_files().split('\n')
     untracked_files = repo.git.ls_files('--others', '--exclude-standard').split('\n')
@@ -50,22 +51,29 @@ def generate_folder_structure(repo_path):
     return build_text(structure)
 
 def generate_tldr(file_content, file_path):
-    """Generate a TLDR (summary) for a given file content using the T5 model."""
     prompt = f"""Summarize the content of the following file:
     File Path: {file_path}
     File Content: {file_content}
     """
     
-    inputs = tokenizer(prompt, return_tensors="pt", max_length=2048, truncation=True).to(device)
-    outputs = model.generate(**inputs, max_length=300, num_return_sequences=1)
-    tldr_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return tldr_text
+    response = client.chat.completions.create(
+        model="meta-llama/llama-3.2-3b-instruct:free",
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+    
+    return response.choices[0].message.content
 
 def generate_lld_section(prompt):
-    """Generate LLD section content using T5 model"""
-    inputs = tokenizer(prompt, return_tensors="pt", max_length=2048, truncation=True).to(device)
-    outputs = model.generate(**inputs, max_length=1000, num_return_sequences=1)
-    raw_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    response = client.chat.completions.create(
+        model="meta-llama/llama-3.2-3b-instruct:free",
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+    
+    raw_text = response.choices[0].message.content
     filtered_text = re.sub(r'<.*?>', '', raw_text).strip()
     return filtered_text
 
@@ -83,7 +91,6 @@ def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=No
     commits = list(repo.iter_commits(f"{old_commit}..{new_commit}"))
     
     for commit in commits:
-        # Basic commit information
         entry = {
             'commit_hash': str(commit),
             'message': commit.message,
@@ -143,10 +150,8 @@ def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=No
         entry['diffs'] = diffs
         detailed_entries.append(entry)
     
-    # Combine TLDRs
     combined_tldrs = "\n\n".join([diff['tldr_section'] for entry in detailed_entries for diff in entry.get('diffs', [])])
     
-    # Generate LLD sections using T5 model
     lld_sections = {}
     lld_sections['introduction'] = generate_lld_section(f"Generate an introduction for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
     lld_sections['system_overview'] = generate_lld_section(f"Generate a system overview for a Low-Level Design (LLD) document based on these TLDRs:\n{combined_tldrs}")
@@ -216,24 +221,20 @@ def generate_detailed_commit_info(repo_path, old_commit, new_commit, lld_path=No
         'lld_path': lld_path
     }
 
-
 def generate_lld_from_directory(repo_path, lld_path=None):
     folder_structure = generate_folder_structure(repo_path)
-    prompt = f"""Identify the key files and folders that are important for the Low-Level Design (LLD) document. List the file paths only.
-
-    {folder_structure}
-    """
-    important_files_prompt = generate_lld_section(prompt)
+    print("Folder Structure:\n", folder_structure)
     
-    # Extract important files from model response
-    important_files = [line.strip() for line in important_files_prompt.split('\n') if line.strip()]
+    selected_files = input("Enter the file paths you want to include in the LLD document (separated by commas): ").split(',')
+    selected_files = [file.strip() for file in selected_files]
     
     summaries = {}
-    for file_path in important_files:
+    for file_path in selected_files:
         full_path = os.path.join(repo_path, file_path)
         if os.path.isfile(full_path):
             with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
+                print(f"Content of {file_path}:\n{content}\n") 
             summary = generate_tldr(content, file_path)
             summaries[file_path] = summary
             print(f"Summary for {file_path}:\n{summary}\n")
