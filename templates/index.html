@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
+    <title>TecDocAuto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-50 min-h-screen flex flex-col">
+    <header class="sticky top-0 bg-white border-b border-gray-200 z-50">
+      <div class="max-w-4xl mx-auto px-4">
+        <div class="flex justify-between items-center h-16">
+          <h1 class="text-2xl font-bold text-gray-800">
+            <span class="text-blue-600">Tec</span>Doc<span class="text-blue-600"
+              >Auto</span
+            >
+          </h1>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 w-full">
+      <div class="max-w-4xl mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">
+          Generate Low-Level Design (LLD) Document
+        </h1>
+
+        <!-- File Upload -->
+        <form
+          action="/upload_project"
+          method="post"
+          enctype="multipart/form-data"
+          class="mb-8"
+        >
+          <label
+            for="project_path"
+            class="block text-sm font-medium text-gray-700"
+            >Upload Project Directory</label
+          >
+          <input
+            type="file"
+            name="project_path"
+            id="project_path"
+            webkitdirectory=""
+            mozdirectory=""
+            directory=""
+            required
+            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+          />
+          <button
+            type="submit"
+            class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-200"
+          >
+            Upload
+          </button>
+        </form>
+
+        <!-- Folder Structure -->
+        {% if tree %}
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            Select Files for LLD
+          </h2>
+          <form action="/generate_lld" method="post">
+            <div class="space-y-4">
+              {% for file in tree %}
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  name="selected_files"
+                  value="{{ file }}"
+                  class="mr-2"
+                />
+                <label>{{ file }}</label>
+              </div>
+              {% endfor %}
+            </div>
+
+            <!-- Enable/Disable Sections -->
+            <h2 class="text-lg font-semibold text-gray-800 mt-8 mb-4">
+              Enable/Disable LLD Sections
+            </h2>
+            <div class="space-y-4">
+              {% for section in prompts.keys() %}
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  name="enabled_sections"
+                  value="{{ section }}"
+                  class="mr-2"
+                  checked
+                />
+                <label>{{ section }}</label>
+              </div>
+              {% endfor %}
+            </div>
+
+            <button
+              type="submit"
+              class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-200"
+            >
+              Generate LLD
+            </button>
+          </form>
+        </div>
+        {% endif %}
+
+        <!-- Result -->
+        {% if result %}
+        <div class="bg-white rounded-xl shadow-lg p-6 relative space-y-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4">Result</h3>
+          <textarea
+            class="w-full h-[200px] p-4 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            readonly
+          >
+{{ content }}</textarea
+          >
+          <a
+            href="/download/{{ lld_path }}"
+            class="mt-4 inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+          >
+            Download LLD Document
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </main>
+  </body>
+</html>
