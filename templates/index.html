@@ -6,6 +6,8 @@
     <title>TecDocAuto - LLD Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   </head>
   <body class="bg-gray-50 min-h-screen flex flex-col">
     <header class="sticky top-0 bg-white border-b border-gray-200 z-50">
@@ -67,6 +69,20 @@
           >
             <h2 class="text-xl font-semibold mb-4">Generation Status</h2>
             <div id="statusMessage" class="text-gray-700"></div>
+            <div id="progressSection" class="hidden">
+              <h3 class="text-lg font-semibold mb-2">Progress</h3>
+              <div
+                id="overallProgressBar"
+                class="w-full bg-gray-200 rounded-full h-2.5 mb-4"
+              >
+                <div
+                  id="overallProgressBarFill"
+                  class="bg-blue-600 h-2.5 rounded-full"
+                  style="width: 0%"
+                ></div>
+              </div>
+              <div id="subTaskProgressBars" class="space-y-2"></div>
+            </div>
             <div id="downloadSection" class="hidden mt-4">
               <a
                 id="downloadLink"
@@ -76,6 +92,14 @@
                 Download LLD Document
               </a>
             </div>
+          </div>
+
+          <div id="markdownViewer" class="hidden">
+            <h3 class="text-lg font-semibold mb-2">Generated Content</h3>
+            <div
+              id="markdownContent"
+              class="border p-4 rounded-lg bg-white"
+            ></div>
           </div>
         </div>
       </div>
@@ -347,12 +371,35 @@
           return enabledPrompts;
         }
 
+        function updateOverallProgress(percentage) {
+          $("#overallProgressBarFill").css("width", `${percentage}%`);
+        }
+
+        function addSubTaskProgressBar(taskName) {
+          const progressBar = $(`
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="bg-green-600 h-2.5 rounded-full" style="width: 0%" id="${taskName}ProgressBarFill"></div>
+            </div>
+          `);
+          $("#subTaskProgressBars").append(progressBar);
+        }
+
+        function updateSubTaskProgress(taskName, percentage) {
+          $(`#${taskName}ProgressBarFill`).css("width", `${percentage}%`);
+        }
+
+        function displayMarkdownContent(content) {
+          $("#markdownViewer").removeClass("hidden");
+          $("#markdownContent").html(marked.parse(content));
+        }
+
         function generateLLD(projectPath) {
           const selectedFiles = collectSelectedFiles();
           const enabledPrompts = collectEnabledPrompts();
 
           $("#generationStatus").removeClass("hidden");
           $("#statusMessage").text("Generating LLD document...");
+          $("#progressSection").removeClass("hidden");
 
           $.ajax({
             url: "/generate_lld",
@@ -365,8 +412,23 @@
             contentType: "application/json",
             success: function (response) {
               $("#statusMessage").text("LLD document generated successfully!");
+              updateOverallProgress(100);
               $("#downloadSection").removeClass("hidden");
               $("#downloadLink").attr("href", `/download/${response.lld_path}`);
+
+              // Render Mermaid diagrams
+              mermaid.initialize({ startOnLoad: true });
+              response.mermaid_diagrams.forEach((diagram) => {
+                const diagramContainer = $("<div>", {
+                  class: "mermaid",
+                  text: diagram,
+                });
+                $("#markdownContent").append(diagramContainer);
+                mermaid.init(undefined, diagramContainer);
+              });
+
+              // Display Markdown content
+              displayMarkdownContent(response.markdown_output);
             },
             error: function (xhr, status, error) {
               $("#statusMessage").text(
