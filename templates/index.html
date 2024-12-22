@@ -12,7 +12,9 @@
       <div class="max-w-4xl mx-auto px-4">
         <div class="flex justify-between items-center h-16">
           <h1 class="text-2xl font-bold text-gray-800">
-            <span class="text-blue-600">Tec</span>Doc<span class="text-blue-600">Auto</span>
+            <span class="text-blue-600">Tec</span>Doc<span class="text-blue-600"
+              >Auto</span
+            >
           </h1>
         </div>
       </div>
@@ -28,7 +30,10 @@
         <form id="projectForm" class="mb-8">
           <div class="space-y-4">
             <div>
-              <label for="project_path" class="block text-sm font-medium text-gray-700">
+              <label
+                for="project_path"
+                class="block text-sm font-medium text-gray-700"
+              >
                 Project Directory Path
               </label>
               <input
@@ -56,11 +61,14 @@
             <div id="selectedFilesList" class="space-y-2"></div>
           </div>
 
-          <div id="generationStatus" class="hidden bg-white rounded-lg shadow p-6">
+          <div
+            id="generationStatus"
+            class="hidden bg-white rounded-lg shadow p-6"
+          >
             <h2 class="text-xl font-semibold mb-4">Generation Status</h2>
             <div id="statusMessage" class="text-gray-700"></div>
             <div id="downloadSection" class="hidden mt-4">
-              
+              <a
                 id="downloadLink"
                 href="#"
                 class="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -177,68 +185,74 @@
         }
 
         function buildPromptsSelection(prompts, container) {
-            const promptsDiv = $("<div>", { class: "space-y-4" });
-            const title = $("<h3>", {
-                text: "Select LLD Sections to Generate",
-                class: "text-lg font-semibold mb-3",
+          const promptsDiv = $("<div>", { class: "space-y-4" });
+          const title = $("<h3>", {
+            text: "Select LLD Sections to Generate",
+            class: "text-lg font-semibold mb-3",
+          });
+
+          promptsDiv.append(title);
+
+          const defaultCheckbox = $("<input>", {
+            type: "checkbox",
+            name: "enabled_prompts",
+            value: "generate_lld_document",
+            checked: true, // This one stays checked
+            class: "mr-2",
+          });
+
+          const defaultLabel = $("<label>", {
+            text: "Generate LLD Document",
+            class: "cursor-pointer",
+          });
+
+          promptsDiv.append(
+            $("<div>").append(defaultCheckbox).append(defaultLabel)
+          );
+
+          Object.entries(prompts).forEach(([name, content]) => {
+            if (name === "generate_lld_document") return;
+
+            const formattedName = name
+              .replace(/_/g, " ")
+              .replace(/\.md$/, "")
+              .split(" ")
+              .map(
+                (word) =>
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+              )
+              .join(" ");
+
+            const checkbox = $("<input>", {
+              type: "checkbox",
+              name: "enabled_prompts",
+              value: name,
+              checked: false,
+              class: "mr-2",
             });
 
-            promptsDiv.append(title);
-
-        
-            const defaultCheckbox = $("<input>", {
-                type: "checkbox",
-                name: "enabled_prompts",
-                value: "generate_lld_document",
-                checked: true, // This one stays checked
-                class: "mr-2",
+            const label = $("<label>", {
+              text: formattedName,
+              class: "cursor-pointer",
             });
 
-            const defaultLabel = $("<label>", {
-                text: "Generate LLD Document",
-                class: "cursor-pointer",
-            });
+            const promptDiv = $("<div>").append(checkbox).append(label);
+            promptsDiv.append(promptDiv);
+          });
 
-            promptsDiv.append($("<div>").append(defaultCheckbox).append(defaultLabel));
-
-            Object.entries(prompts).forEach(([name, content]) => {
-                if (name === "generate_lld_document") return;
-                
-                const formattedName = name
-                .replace(/_/g, ' ')
-                .replace(/\.md$/, '')
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                .join(' ');
-
-                const checkbox = $("<input>", {
-                type: "checkbox",
-                name: "enabled_prompts",
-                value: name,
-                checked: false,
-                class: "mr-2",
-                });
-
-                const label = $("<label>", {
-                text: formattedName,
-                class: "cursor-pointer",
-                });
-
-                const promptDiv = $("<div>").append(checkbox).append(label);
-                promptsDiv.append(promptDiv);
-            });
-
-            container.append(promptsDiv);
+          container.append(promptsDiv);
         }
 
         function showFileSelectionModal(treeData, prompts) {
           const modal = $("<div>", {
             id: "fileTreeModal",
-            class: "fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50",
+            class:
+              "fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50",
           });
 
           const modalContent = $("<div>", {
-            class: "bg-white p-6 rounded-lg w-3/4 max-h-[80vh] overflow-y-auto space-y-6",
+            class:
+              "bg-white p-6 rounded-lg w-3/4 max-h-[80vh] overflow-y-auto space-y-6",
           });
 
           // File tree section
@@ -258,12 +272,14 @@
 
           const cancelButton = $("<button>", {
             text: "Cancel",
-            class: "px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600",
+            class:
+              "px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600",
           }).click(() => modal.remove());
 
           const continueButton = $("<button>", {
             text: "Continue",
-            class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700",
+            class:
+              "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700",
           }).click(() => {
             const selectedFiles = collectSelectedFiles();
             if (selectedFiles.length === 0) {
@@ -283,7 +299,7 @@
 
         function showMainPageSections(selectedFiles, prompts) {
           $("#resultSection").removeClass("hidden");
-          
+
           // Show selected files
           const filesList = $("#selectedFilesList");
           filesList.empty();
@@ -296,20 +312,21 @@
             );
           });
 
-          const promptsContainer = $("<div>", { 
+          const promptsContainer = $("<div>", {
             id: "promptsSection",
-            class: "bg-white rounded-lg shadow p-6 mt-6" 
+            class: "bg-white rounded-lg shadow p-6 mt-6",
           });
           buildPromptsSelection(prompts, promptsContainer);
-          
+
           // Add generate button
           const generateButton = $("<button>", {
             text: "Generate LLD",
-            class: "mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700",
+            class:
+              "mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700",
           }).click(() => {
             generateLLD($("#project_path").val());
           });
-          
+
           promptsContainer.append(generateButton);
           $("#resultSection").append(promptsContainer);
         }
@@ -352,7 +369,9 @@
               $("#downloadLink").attr("href", `/download/${response.lld_path}`);
             },
             error: function (xhr, status, error) {
-              $("#statusMessage").text("Error generating LLD document: " + error);
+              $("#statusMessage").text(
+                "Error generating LLD document: " + error
+              );
             },
           });
         }
