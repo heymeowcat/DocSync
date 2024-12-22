@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
-from utils import generate_lld_from_directory
+from utils import generate_lld_from_directory, generate_mermaid_diagram
 
 router = APIRouter()
 
@@ -18,10 +18,17 @@ async def generate_lld(request: Request):
             enabled_prompts
         )
         
+        # Generate Mermaid diagrams
+        mermaid_diagrams = []
+        for section in markdown_output.split("\n\n"):
+            if "```mermaid" in section:
+                mermaid_diagrams.append(section)
+        
         return JSONResponse(content={
             "success": True,
             "lld_path": lld_path,
-            "markdown_output": markdown_output
+            "markdown_output": markdown_output,
+            "mermaid_diagrams": mermaid_diagrams
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

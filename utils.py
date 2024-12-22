@@ -1,26 +1,24 @@
-import fnmatch
 import os
-from os.path import join, dirname
+from docx import Document
+from openai import OpenAI
+import re
+import tiktoken
+import fnmatch
 from colorama import Fore, Style
 from dotenv import load_dotenv
-from docx import Document
-import logging
-import tiktoken
-import re
-from openai import OpenAI
+from os.path import join, dirname
 
+# Load environment variables
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
+# Initialize OpenAI client
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.environ.get("OPENROUTER_API_KEY"),
 )
 
-
+# Default ignore patterns
 DEFAULT_IGNORE_PATTERNS = [
     '*.pyc', '*.pyo', '*.pyd', '__pycache__',  # Python
     'node_modules', 'bower_components',        # JavaScript
@@ -36,7 +34,6 @@ DEFAULT_IGNORE_PATTERNS = [
 ]
 
 PROMPT_LIBRARY_DIR = "prompt_library"  # Directory for the prompt library
-
 
 # Helper function to format prompt names
 def format_prompt_name(filename):
@@ -413,8 +410,6 @@ def generate_content_string(data):
     add_file_content(data)
     return content
 
-def format_prompt_name(filename):
-    """Formats the prompt name for display."""
-    name = filename[:-3]  # Remove .md extension
-    name = name.replace("_", " ").title()  # Replace underscores and capitalize
-    return name
+# Generate Mermaid diagram
+def generate_mermaid_diagram(diagram_text):
+    return f"```mermaid\n{diagram_text}\n```"
