@@ -115,7 +115,28 @@
             </div>
           </div>
 
-          <div id="markdownViewer" class="hidden">
+          <div
+            id="promptsSection"
+            class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6"
+          >
+            <h3
+              class="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100"
+            >
+              Select LLD Sections to Generate
+            </h3>
+            <div id="promptsList" class="space-y-2"></div>
+            <button
+              id="generateButton"
+              class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Generate LLD
+            </button>
+          </div>
+
+          <div
+            id="markdownViewer"
+            class="hidden bg-white dark:bg-gray-800 rounded-lg shadow p-6"
+          >
             <h3
               class="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100"
             >
@@ -123,7 +144,7 @@
             </h3>
             <div
               id="markdownContent"
-              class="border p-4 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 overflow-y-auto max-h-96"
+              class="prose dark:prose-invert max-w-none"
             ></div>
           </div>
         </div>
@@ -131,6 +152,8 @@
     </main>
 
     <script>
+      let selectedFilesGlobal = [];
+
       $(document).ready(function () {
         $("#projectForm").on("submit", function (e) {
           e.preventDefault();
@@ -185,12 +208,12 @@
               details.append(checkbox).append(summary);
 
               if (tree.children && tree.children.length > 0) {
-                const childUl = $("<ul>", { class: "pl-4" });
+                const ul = $("<ul>", { class: "pl-4" });
                 tree.children.forEach((child) => {
                   const childLi = createTreeItem(child);
-                  childUl.append(childLi);
+                  ul.append(childLi);
                 });
-                details.append(childUl);
+                details.append(ul);
               }
 
               li.append(details);
@@ -367,6 +390,7 @@
               alert("Please select at least one file to include in the LLD.");
               return;
             }
+            selectedFilesGlobal = selectedFiles; // Store selected files globally
             modal.remove();
             showMainPageSections(selectedFiles, prompts);
           });
@@ -392,33 +416,36 @@
             );
           });
 
-          const promptsContainer = $("<div>", {
-            id: "promptsSection",
-            class: "bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6",
-          });
+          const promptsContainer = $("#promptsList");
+          promptsContainer.empty();
           buildPromptsSelection(prompts, promptsContainer);
 
-          const generateButton = $("<button>", {
-            text: "Generate LLD",
-            class:
-              "mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700",
-          }).click(() => {
-            generateButton.prop("disabled", true);
-            generateLLD($("#project_path").val(), () => {
-              generateButton.prop("disabled", false);
+          $("#generateButton")
+            .off("click")
+            .click(() => {
+              $("#generateButton").prop("disabled", true);
+              generateLLD($("#project_path").val(), () => {
+                $("#generateButton").prop("disabled", false);
+              });
             });
-          });
-
-          promptsContainer.append(generateButton);
-          $("#resultSection").append(promptsContainer);
         }
 
         function collectSelectedFiles() {
-          return $('input[name="selected_files"]:checked')
-            .map(function () {
-              return $(this).val();
-            })
-            .get();
+          if (selectedFilesGlobal.length > 0) {
+            return selectedFilesGlobal;
+          }
+
+          const selectedFiles = [];
+          $('input[name="selected_files"]:checked').each(function () {
+            const path = $(this).val();
+            if (path) {
+              // Remove any leading '/' or './' from the path
+              const cleanPath = path.replace(/^[./]+/, "");
+              selectedFiles.push(cleanPath);
+            }
+          });
+          console.log("Collected files:", selectedFiles);
+          return selectedFiles;
         }
 
         function collectEnabledPrompts() {
@@ -452,8 +479,11 @@
         }
 
         function generateLLD(projectPath, callback) {
-          const selectedFiles = collectSelectedFiles();
+          const selectedFiles = selectedFilesGlobal;
           const enabledPrompts = collectEnabledPrompts();
+
+          console.log("Selected files:", selectedFiles);
+          console.log("Enabled prompts:", enabledPrompts);
 
           $("#generationStatus").removeClass("hidden");
           $("#statusMessage").text("Generating LLD document...");
@@ -473,16 +503,6 @@
               updateOverallProgress(100);
               $("#downloadSection").removeClass("hidden");
               $("#downloadLink").attr("href", `/download/${response.lld_path}`);
-
-              mermaid.initialize({ startOnLoad: true });
-              response.mermaid_diagrams.forEach((diagram) => {
-                const diagramContainer = $("<div>", {
-                  class: "mermaid",
-                  text: diagram,
-                });
-                $("#markdownContent").append(diagramContainer);
-                mermaid.init(undefined, diagramContainer);
-              });
 
               displayMarkdownContent(response.markdown_output);
               callback();
