@@ -12,13 +12,18 @@ async def generate_lld(request: Request):
         selected_files = data["selected_files"]
         enabled_prompts = data.get("enabled_prompts", {})
         
+        # Debug log
+        print(f"Project Path: {project_path}")
+        print(f"Selected Files: {selected_files}")
+        print(f"Enabled Prompts: {enabled_prompts}")
+        
         lld_path, markdown_output = generate_lld_from_directory(
             project_path,
             selected_files,
             enabled_prompts
         )
         
-        # Generate Mermaid diagrams
+       
         mermaid_diagrams = []
         for section in markdown_output.split("\n\n"):
             if "```mermaid" in section:
