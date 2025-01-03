@@ -271,264 +271,192 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
     """Generate LLD document from selected files."""
     if not os.path.exists(repo_path):
         raise FileNotFoundError(f"Repository path {repo_path} does not exist")
-    
     if not selected_files:
         raise ValueError("No files selected for analysis")
 
-    # Generate summaries for selected files
     summaries = {}
     for file_path in selected_files:
-        full_path = os.path.join(repo_path, file_path)
+        # Just add leading slash if it's missing
+        full_path = '/' + file_path if not file_path.startswith('/') else file_path
+        
+        print(f"[DEBUG] Processing file: {full_path}")
         if os.path.isfile(full_path):
             try:
+                # Read file content
                 with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
-                    print(f"Content of {file_path}:\n{content}\n")  # Debug log
+                if not content.strip():
+                    print(f"[WARN] File {file_path} is empty or unreadable.")
+                    continue
                 summary = generate_tldr(content, file_path)
+                if not summary:
+                    print(f"[WARN] No summary generated for {file_path}.")
+                    continue
                 summaries[file_path] = summary
-                print(f"Summary for {file_path}:\n{summary}\n")  # Debug log
             except Exception as e:
-                print(f"Error processing file {file_path}: {str(e)}")
+                print(f"[ERROR] Unable to process {file_path}: {e}")
                 continue
+        else:
+            print(f"[WARN] File does not exist: {full_path}")
 
-    # Combine all file summaries
-    combined_tldrs = "\n\n".join([f"File: {path}\nSummary: {summary}" for path, summary in summaries.items()])
-    print(f"Combined TLDRs:\n{combined_tldrs}\n")  # Debug log
+    # Combine file summaries
+    combined_tldrs = "\n\n".join(
+        [f"File: {path}\nSummary: {summary}" for path, summary in summaries.items()]
+    )
+    if not combined_tldrs.strip():
+        raise ValueError("No summaries were generated from the provided files.")
+    
+    print(f"[INFO] Combined TLDRs:\n{combined_tldrs}")
 
     # Generate project summary
     project_summary = generate_lld_section(
         f"Summarize the entire project based on these file summaries:\n{combined_tldrs}"
     )
-    print(f"Project Summary:\n{project_summary}\n")  # Debug log
+    print(f"[INFO] Project Summary:\n{project_summary}\n")
 
-    # Section templates with detailed prompts
-    section_templates = {
-        'introduction': {
-            'heading': '1. Introduction',
-            'title': 'Introduction',
-            'prompt': f"""Analyze the provided code and write a comprehensive introduction section that includes:
-                        - Purpose and scope of the system
-                        - Key features and functionality
-                        - Target audience and use cases
-                        - Overall system context and relationships
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'system_overview': {
-            'heading': '2. System Overview',
-            'title': 'System Overview',
-            'prompt': f"""Based on the code analysis, provide a detailed system overview that covers:
-                        - High-level architecture
-                        - Major components and their interactions
-                        - System boundaries and interfaces
-                        - Key design decisions and rationale
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'detailed_design': {
-            'heading': '3. Detailed Design',
-            'title': 'Detailed Design',
-            'prompt': f"""Examine the code and create a detailed design section that includes:
-                        - Component-level design details
-                        - Class/module relationships
-                        - Key algorithms and data structures
-                        - Design patterns used
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'data_design': {
-            'heading': '4. Data Design',
-            'title': 'Data Design',
-            'prompt': f"""Analyze the data aspects of the code and describe:
-                        - Data models and structures
-                        - Data flow and transformations
-                        - Storage and retrieval mechanisms
-                        - Data validation and integrity
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'interface_design': {
-            'heading': '5. Interface Design',
-            'title': 'Interface Design',
-            'prompt': f"""Detail the interface design including:
-                        - API specifications
-                        - User interface components
-                        - External system interfaces
-                        - Communication protocols
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'algorithm_design': {
-            'heading': '6. Algorithm Design',
-            'title': 'Algorithm Design',
-            'prompt': f"""Document the key algorithms including:
-                        - Core processing logic
-                        - Performance optimization approaches
-                        - Complex calculations
-                        - Data processing workflows
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'security_design': {
-            'heading': '7. Security Design',
-            'title': 'Security Design',
-            'prompt': f"""Describe the security measures including:
-                        - Authentication and authorization
-                        - Data protection
-                        - Security protocols
-                        - Vulnerability prevention
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'error_handling': {
-            'heading': '8. Error Handling and Logging',
-            'title': 'Error Handling',
-            'prompt': f"""Detail the error handling approach:
-                        - Error detection and recovery
-                        - Logging mechanisms
-                        - Exception handling
-                        - Monitoring and alerting
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'performance': {
-            'heading': '9. Performance Considerations',
-            'title': 'Performance',
-            'prompt': f"""Analyze performance aspects including:
-                        - Performance optimization techniques
-                        - Scalability considerations
-                        - Resource utilization
-                        - Performance monitoring
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'testing': {
-            'heading': '10. Testing and Validation',
-            'title': 'Testing',
-            'prompt': f"""Outline the testing strategy including:
-                        - Test approaches and methodologies
-                        - Test coverage and scenarios
-                        - Validation criteria
-                        - Quality assurance measures
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'deployment': {
-            'heading': '11. Deployment Considerations',
-            'title': 'Deployment',
-            'prompt': f"""Document deployment aspects including:
-                        - Deployment process and requirements
-                        - Environment setup
-                        - Configuration management
-                        - Maintenance procedures
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'assumptions': {
-            'heading': '12. Assumptions and Dependencies',
-            'title': 'Assumptions',
-            'prompt': f"""List and explain:
-                        - Key assumptions made
-                        - External dependencies
-                        - Constraints and limitations
-                        - Risk factors
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        },
-        'appendix': {
-            'heading': '13. Appendix',
-            'title': 'Appendix',
-            'prompt': f"""Provide supplementary information including:
-                        - Technical references
-                        - Additional diagrams
-                        - Supporting documentation
-                        - Glossary of terms
-
-                        Project Context:
-                        {project_summary}
-
-                        File Summaries:
-                        {combined_tldrs}"""
-        }
-    }
-
+    # output path for LLD
     if not lld_path:
         lld_path = os.path.join(repo_path, 'project_lld.docx')
 
-    doc = Document()
-    doc.add_heading('Low-Level Design (LLD) Document', 0)
-    doc.add_heading('Project Summary', level=1)
-    doc.add_paragraph(project_summary)
-
-    markdown_output = [f"# Project Summary\n\n{project_summary}\n"]
-    for section_key, section_info in section_templates.items():
-        if enabled_prompts.get(section_key, False):
-            try:
-                section_content = generate_lld_section(section_info['prompt'])
-                
-                doc.add_heading(section_info['heading'], level=1)
-                doc.add_paragraph(section_content)
-                
-                markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n")
-
-            except Exception as e:
-                print(f"Error generating section for {section_key}: {str(e)}")
-                continue
-
     try:
-        doc.save(lld_path)
-    except Exception as e:
-        raise Exception(f"Error saving document: {str(e)}")
+        doc = Document()
+        doc.add_heading('Low-Level Design (LLD) Document', 0)
+        doc.add_heading('Project Summary', level=1)
+        doc.add_paragraph(project_summary)
+        markdown_output = [f"# Project Summary\n\n{project_summary}\n"]
 
-    return lld_path, "\n\n".join(markdown_output)
+        # Generate sections based on enabled prompts
+        for section_key, section_info in section_templates.items():
+            # If generate_lld_document is True, process all hardcoded sections
+            if enabled_prompts.get('generate_lld_document', False):
+                try:
+                    section_prompt = section_info['prompt'].format(
+                        project_context=project_summary,
+                        file_summaries=combined_tldrs
+                    )
+                    section_content = generate_lld_section(section_prompt)
+                    doc.add_heading(section_info['heading'], level=1)
+                    doc.add_paragraph(section_content)
+                    markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n")
+                    print(f"[INFO] Generated content for {section_key}:\n{section_content}\n")
+                except Exception as e:
+                    print(f"[ERROR] Error generating section for {section_key}: {e}")
+                    continue
+        doc.save(lld_path)
+        print(f"[INFO] Document saved to {lld_path}")
+        return lld_path, "\n\n".join(markdown_output)
+    except Exception as e:
+        raise Exception(f"[CRITICAL] Error saving document: {e}")
+    
+    
+# Example section templates
+section_templates = {
+    'introduction': {
+        'heading': '1. Introduction',
+        'title': 'Introduction',
+        'prompt': """Write a comprehensive introduction that includes:
+        - Purpose and scope of the system
+        - Key features and functionality
+        - Target audience and use cases
+        - Overall system context and relationships
+
+        Project Context:
+        {project_context}
+
+        File Summaries:
+        {file_summaries}"""
+    },
+    'system_overview': {
+        'heading': '2. System Overview',
+        'title': 'System Overview',
+        'prompt': """Provide a detailed system overview covering:
+        - High-level architecture
+        - Major components and their interactions
+        - System boundaries and interfaces
+        - Key design decisions and rationale
+
+        Project Context:
+        {project_context}
+
+        File Summaries:
+        {file_summaries}"""
+    },
+    'detailed_design': {
+        'heading': '3. Detailed Design',
+        'title': 'Detailed Design',
+        'prompt': """Create a detailed design section including:
+        - Component-level design details
+        - Class/module relationships
+        - Key algorithms and data structures
+        - Design patterns used
+
+        Project Context:
+        {project_context}
+
+        File Summaries:
+        {file_summaries}"""
+    },
+    'data_design': {
+        'heading': '4. Data Design',
+        'title': 'Data Design',
+        'prompt': """Analyze the data aspects of the code and describe:
+        - Data models and structures
+        - Data flow and transformations
+        - Storage and retrieval mechanisms
+        - Data validation and integrity
+
+        Project Context:
+        {project_context}
+
+        File Summaries:
+        {file_summaries}"""
+    },
+    'interface_design': {
+        'heading': '5. Interface Design',
+        'title': 'Interface Design',
+        'prompt': """Detail the interface design including:
+        - API specifications
+        - User interface components
+        - External system interfaces
+        - Communication protocols
+
+        Project Context:
+        {project_context}
+
+        File Summaries:
+        {file_summaries}"""
+    },
+    'algorithm_design': {
+        'heading': '6. Algorithm Design',
+        'title': 'Algorithm Design',
+        'prompt': """Document the key algorithms including:
+        - Core processing logic
+        - Performance optimization approaches
+        - Complex calculations
+        - Data processing workflows
+
+        Project Context:
+        {project_context}
+
+        File Summaries:
+        {file_summaries}"""
+    },
+    'testing': {
+        'heading': '7. Testing and Validation',
+        'title': 'Testing',
+        'prompt': """Outline the testing strategy including:
+        - Test approaches and methodologies
+        - Test coverage and scenarios
+        - Validation criteria
+        - Quality assurance measures
+
+        Project Context:
+        {project_context}
+
+        File Summaries:
+        {file_summaries}"""
+    }
+}
 
 
 def generate_markdown_output(repo_path, selected_files, directory_data):
