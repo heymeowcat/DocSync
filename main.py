@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from routes import scan_project, generate_lld, upload_project, download_lld
+from routes import scan_project, generate_lld
 
 app = FastAPI()
 
@@ -25,8 +25,6 @@ app.add_middleware(
 # Include routes
 app.include_router(scan_project.router)
 app.include_router(generate_lld.router)
-app.include_router(upload_project.router)
-app.include_router(download_lld.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
