@@ -325,10 +325,10 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
         doc.add_paragraph(project_summary)
         markdown_output = [f"# Project Summary\n\n{project_summary}\n"]
 
-        # Generate sections based on enabled prompts
-        for section_key, section_info in section_templates.items():
-            # If generate_lld_document is True, process all hardcoded sections
-            if enabled_prompts.get('generate_lld_document', False):
+        # Handle the `generate_lld_document` item separately
+        if enabled_prompts.get('generate_lld_document', False):
+            # Process all hardcoded sections as before
+            for section_key, section_info in section_templates.items():
                 try:
                     section_prompt = section_info['prompt'].format(
                         project_context=project_summary,
@@ -342,6 +342,40 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
                 except Exception as e:
                     print(f"[ERROR] Error generating section for {section_key}: {e}")
                     continue
+
+        # Handle other enabled prompts
+        for prompt_name, is_enabled in enabled_prompts.items():
+            if prompt_name == 'generate_lld_document':
+                continue  # Skip, as it's already handled above
+
+            if is_enabled:
+                try:
+                    # Fetch the prompt text from the corresponding file
+                    prompt_file_path = os.path.join("prompts", f"{prompt_name}.md")
+                    if not os.path.exists(prompt_file_path):
+                        print(f"[WARN] Prompt file not found: {prompt_file_path}")
+                        continue
+
+                    with open(prompt_file_path, 'r', encoding='utf-8') as f:
+                        prompt_text = f.read()
+
+                    # Format the prompt with the combined summaries
+                    formatted_prompt = prompt_text.format(
+                        project_context=project_summary,
+                        file_summaries=combined_tldrs
+                    )
+
+                    # Generate content for this prompt
+                    section_content = generate_lld_section(formatted_prompt)
+                    doc.add_heading(prompt_name.replace("_", " ").title(), level=1)
+                    doc.add_paragraph(section_content)
+                    markdown_output.append(f"## {prompt_name.replace('_', ' ').title()}\n\n{section_content}\n")
+                    print(f"[INFO] Generated content for {prompt_name}:\n{section_content}\n")
+                except Exception as e:
+                    print(f"[ERROR] Error generating section for {prompt_name}: {e}")
+                    continue
+
+        # Save the document
         doc.save(lld_path)
         print(f"[INFO] Document saved to {lld_path}")
         return lld_path, "\n\n".join(markdown_output)
@@ -349,7 +383,6 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
         raise Exception(f"[CRITICAL] Error saving document: {e}")
     
     
-# Example section templates
 section_templates = {
     'introduction': {
         'heading': '1. Introduction',
