@@ -1,7 +1,10 @@
+import base64
+from io import BytesIO
 import os
 from docx import Document
 from openai import OpenAI
 import re
+import requests
 import tiktoken
 import fnmatch
 from colorama import Fore, Style
@@ -266,6 +269,45 @@ def count_tokens(text):
     except Exception as e:
         print(f"Warning: Error counting tokens: {str(e)}")
         return 0
+
+def mermaid_to_image(mermaid_code):
+    """Convert Mermaid code to an image using the Mermaid Live API."""
+    try:
+        # Encode the Mermaid code for the URL
+        encoded_code = base64.urlsafe_b64encode(mermaid_code.encode("utf-8")).decode("utf-8")
+        url = f"https://mermaid.ink/img/{encoded_code}"
+        
+        # Fetch the image
+        response = requests.get(url)
+        if response.status_code == 200:
+            return BytesIO(response.content)  # Return the image as a BytesIO object
+        else:
+            print(f"[ERROR] Failed to generate Mermaid diagram: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"[ERROR] Error generating Mermaid diagram: {e}")
+        return None
+
+def replace_diagrams_with_mermaid(content):
+    """Replace text-based diagrams with Mermaid diagrams."""
+    # Example: Detect text-based diagrams (e.g., using arrows, pipes, etc.)
+    diagram_patterns = [
+        r"(\+[-+]+\+)",  # Box diagrams
+        r"(->|<-|=>|<=)",  # Arrows
+        r"(\|.*\|)",  # Tables or grids
+    ]
+
+    for pattern in diagram_patterns:
+        if re.search(pattern, content):
+            mermaid_code = """
+            graph TD
+                A[System] --> B[Component 1]
+                A --> C[Component 2]
+                B --> D[Subcomponent 1]
+                C --> D
+            """
+            return mermaid_code
+    return None
 
 def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_path=None):
     """Generate LLD document from selected files."""
