@@ -377,9 +377,29 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
                         file_summaries=combined_tldrs
                     )
                     section_content = generate_lld_section(section_prompt)
-                    doc.add_heading(section_info['heading'], level=1)
-                    doc.add_paragraph(section_content)
-                    markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n")
+
+                    # Check for diagrams and replace with Mermaid
+                    mermaid_code = replace_diagrams_with_mermaid(section_content)
+                    if mermaid_code:
+                        # Generate Mermaid diagram image
+                        diagram_image = mermaid_to_image(mermaid_code)
+                        if diagram_image:
+                            # Add the diagram to the document
+                            doc.add_heading(section_info['heading'], level=1)
+                            doc.add_paragraph(section_content)
+                            doc.add_picture(diagram_image, width=Inches(6))  # Add the image
+                            markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n![Mermaid Diagram](diagram.png)\n")
+                        else:
+                            # Fallback to text content if diagram generation fails
+                            doc.add_heading(section_info['heading'], level=1)
+                            doc.add_paragraph(section_content)
+                            markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n")
+                    else:
+                        # No diagram found, add text content as is
+                        doc.add_heading(section_info['heading'], level=1)
+                        doc.add_paragraph(section_content)
+                        markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n")
+
                     print(f"[INFO] Generated content for {section_key}:\n{section_content}\n")
                 except Exception as e:
                     print(f"[ERROR] Error generating section for {section_key}: {e}")
