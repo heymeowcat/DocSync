@@ -10,6 +10,7 @@ import fnmatch
 from colorama import Fore, Style
 from dotenv import load_dotenv
 from os.path import join, dirname
+from docx.shared import Inches
 
 # Load environment variables
 dotenv_path = join(dirname(__file__), '.env')
