@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TecDocAuto - LLD Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
@@ -236,9 +241,18 @@
       $(document).ready(function () {
         const themeToggle = $("#themeToggle");
         const themeIcon = $("#themeIcon");
+        const savedTheme = localStorage.getItem("theme") || "dark";
+        document.documentElement.classList.toggle(
+          "dark",
+          savedTheme === "dark"
+        );
+        themeIcon.text(savedTheme === "dark" ? "☀️" : "🌙");
+
         themeToggle.click(() => {
-          $("html").toggleClass("dark");
-          themeIcon.text($("html").hasClass("dark") ? "☀️" : "🌙");
+          document.documentElement.classList.toggle("dark");
+          const isDark = document.documentElement.classList.contains("dark");
+          themeIcon.text(isDark ? "☀️" : "🌙");
+          localStorage.setItem("theme", isDark ? "dark" : "light");
         });
 
         $("#projectForm").on("submit", function (e) {
