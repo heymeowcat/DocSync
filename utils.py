@@ -11,6 +11,9 @@ from colorama import Fore, Style
 from dotenv import load_dotenv
 from os.path import join, dirname
 from docx.shared import Inches
+import markdown
+from markdown_mermaid import MermaidExtension
+import pypandoc
 
 # Load environment variables
 dotenv_path = join(dirname(__file__), '.env')
@@ -38,6 +41,32 @@ DEFAULT_IGNORE_PATTERNS = [
 ]
 
 PROMPT_LIBRARY_DIR = "prompt_library"  # Directory for the prompt library
+
+def markdown_to_docx(markdown_content, output_path):
+    """Convert markdown content to DOCX using pandoc."""
+    try:
+        # Configure Markdown with Mermaid extension
+        md = markdown.Markdown(extensions=['markdown_mermaid'])
+        
+        # Save markdown content to a temporary file
+        temp_md_path = 'temp.md'
+        with open(temp_md_path, 'w', encoding='utf-8') as f:
+            f.write(markdown_content)
+        
+        # Convert markdown to docx using pandoc
+        output = pypandoc.convert_file(
+            temp_md_path,
+            'docx',
+            outputfile=output_path,
+            extra_args=['--standalone', '--wrap=none']
+        )
+        
+        # Clean up temporary file
+        os.remove(temp_md_path)
+        return True
+    except Exception as e:
+        print(f"Error converting markdown to docx: {e}")
+        return False
 
 # Helper function to format prompt names
 def format_prompt_name(filename):
