@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import os
 import json
 from xml.etree import ElementTree as ET
+from utils import generate_lld_from_directory 
 
 router = APIRouter()
 
@@ -10,26 +11,40 @@ class GenerateLLDRequest(BaseModel):
     project_path: str
     selected_files: list[str]
     enabled_prompts: dict[str, bool]
-    output_format: str = "markdown" 
+    output_format: str = "markdown"
 
 @router.post("/generate_lld")
 async def generate_lld(request: GenerateLLDRequest):
     """Generate an LLD document based on the selected files and prompts."""
+    print("Received project path:", request.project_path)
+    print("Selected files:", request.selected_files)
+    print("Enabled prompts:", request.enabled_prompts)
     try:
-        # Generate the LLD document (replace with your logic)
-        lld_content = generate_lld_content(request.project_path, request.selected_files, request.enabled_prompts)
+        # Validate the project path
+        if not os.path.exists(request.project_path):
+            raise HTTPException(status_code=400, detail="Project path does not exist.")
+
+        # Generate the LLD document using the logic from utils.py
+        lld_path, lld_content = generate_lld_from_directory(
+            repo_path=request.project_path,
+            selected_files=request.selected_files,
+            enabled_prompts=request.enabled_prompts
+        )
+
+        if not lld_path or not lld_content:
+            raise HTTPException(status_code=500, detail="Failed to generate LLD document.")
 
         # Save the document based on the selected format
-        lld_path = save_lld_document(lld_content, request.output_format)
+        saved_file_path = save_lld_document(lld_content, request.output_format)
 
-        return {"lld_path": lld_path, "markdown_output": lld_content}
+        return {
+            "lld_path": saved_file_path,
+            "markdown_output": lld_content
+        }
+    except HTTPException:
+        raise  # Re-raise FastAPI HTTP exceptions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating LLD: {str(e)}")
-
-def generate_lld_content(project_path, selected_files, enabled_prompts):
-    """Generate LLD content based on the selected files and prompts."""
-    # Replace with your logic to generate LLD content
-    return f"# LLD Document\n\nGenerated for {project_path} with {len(selected_files)} files."
 
 def save_lld_document(content, output_format):
     """Save the LLD document in the specified format."""
