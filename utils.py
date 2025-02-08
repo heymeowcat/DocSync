@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from os.path import join, dirname
 from docx.shared import Inches
 import markdown
-from markdown_mermaid import MermaidExtension
 import pypandoc
 
 # Load environment variables
@@ -45,24 +44,14 @@ PROMPT_LIBRARY_DIR = "prompt_library"  # Directory for the prompt library
 def markdown_to_docx(markdown_content, output_path):
     """Convert markdown content to DOCX using pandoc."""
     try:
-        # Configure Markdown with Mermaid extension
-        md = markdown.Markdown(extensions=['markdown_mermaid'])
-        
-        # Save markdown content to a temporary file
-        temp_md_path = 'temp.md'
-        with open(temp_md_path, 'w', encoding='utf-8') as f:
-            f.write(markdown_content)
-        
         # Convert markdown to docx using pandoc
-        output = pypandoc.convert_file(
-            temp_md_path,
+        pypandoc.convert_text(
+            markdown_content,
             'docx',
             outputfile=output_path,
+            format='md',
             extra_args=['--standalone', '--wrap=none']
         )
-        
-        # Clean up temporary file
-        os.remove(temp_md_path)
         return True
     except Exception as e:
         print(f"Error converting markdown to docx: {e}")
@@ -300,47 +289,9 @@ def count_tokens(text):
         print(f"Warning: Error counting tokens: {str(e)}")
         return 0
 
-def mermaid_to_image(mermaid_code):
-    """Convert Mermaid code to an image using the Mermaid Live API."""
-    try:
-        # Encode the Mermaid code for the URL
-        encoded_code = base64.urlsafe_b64encode(mermaid_code.encode("utf-8")).decode("utf-8")
-        url = f"https://mermaid.ink/img/{encoded_code}"
-        
-        # Fetch the image
-        response = requests.get(url)
-        if response.status_code == 200:
-            return BytesIO(response.content)  # Return the image as a BytesIO object
-        else:
-            print(f"[ERROR] Failed to generate Mermaid diagram: {response.status_code}")
-            return None
-    except Exception as e:
-        print(f"[ERROR] Error generating Mermaid diagram: {e}")
-        return None
-
-def replace_diagrams_with_mermaid(content):
-    """Replace text-based diagrams with Mermaid diagrams."""
-    # Example: Detect text-based diagrams (e.g., using arrows, pipes, etc.)
-    diagram_patterns = [
-        r"(\+[-+]+\+)",  # Box diagrams
-        r"(->|<-|=>|<=)",  # Arrows
-        r"(\|.*\|)",  # Tables or grids
-    ]
-
-    for pattern in diagram_patterns:
-        if re.search(pattern, content):
-            mermaid_code = """
-            graph TD
-                A[System] --> B[Component 1]
-                A --> C[Component 2]
-                B --> D[Subcomponent 1]
-                C --> D
-            """
-            return mermaid_code
-    return None
-
 def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_path=None):
     """Generate LLD document from selected files."""
+
     if not os.path.exists(repo_path):
         raise FileNotFoundError(f"Repository path {repo_path} does not exist")
     if not selected_files:
@@ -348,19 +299,17 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
 
     summaries = {}
     for file_path in selected_files:
-        # Just add leading slash if it's missing
         full_path = '/' + file_path if not file_path.startswith('/') else file_path
         
         print(f"[DEBUG] Processing file: {full_path}")
         if os.path.isfile(full_path):
             try:
-                # Read file content
                 with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
                 if not content.strip():
                     print(f"[WARN] File {file_path} is empty or unreadable.")
                     continue
-                summary = generate_tldr(content, file_path)
+                summary = generate_tldr(content, file_path) # Assuming this function is defined
                 if not summary:
                     print(f"[WARN] No summary generated for {file_path}.")
                     continue
@@ -371,7 +320,6 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
         else:
             print(f"[WARN] File does not exist: {full_path}")
 
-    # Combine file summaries
     combined_tldrs = "\n\n".join(
         [f"File: {path}\nSummary: {summary}" for path, summary in summaries.items()]
     )
@@ -380,100 +328,67 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
     
     print(f"[INFO] Combined TLDRs:\n{combined_tldrs}")
 
-    # Generate project summary
-    project_summary = generate_lld_section(
+    project_summary = generate_lld_section(  # Assuming this function is defined
         f"Summarize the entire project based on these file summaries:\n{combined_tldrs}"
     )
     print(f"[INFO] Project Summary:\n{project_summary}\n")
 
-    # output path for LLD
+
+    lld_markdown_content = f"# Project Summary\n\n{project_summary}\n\n"  # Initialize
+
+    if enabled_prompts.get('generate_lld_document', False):
+        for section_key, section_info in section_templates.items(): # Assuming section_templates is defined
+            try:
+                section_prompt = section_info['prompt'].format(
+                    project_context=project_summary,
+                    file_summaries=combined_tldrs
+                )
+                section_content = generate_lld_section(section_prompt)  # Assuming this function is defined
+
+                lld_markdown_content += f"## {section_info['title']}\n\n{section_content}\n\n" # Add to content
+
+            except Exception as e:
+                print(f"[ERROR] Error generating section for {section_key}: {e}")
+                continue
+
+    for prompt_name, is_enabled in enabled_prompts.items():
+        if prompt_name == 'generate_lld_document':
+            continue
+
+        if is_enabled:
+            try:
+                prompt_file_path = os.path.join("prompts", f"{prompt_name}.md") # Adjust path as needed
+                if not os.path.exists(prompt_file_path):
+                    print(f"[WARN] Prompt file not found: {prompt_file_path}")
+                    continue
+
+                with open(prompt_file_path, 'r', encoding='utf-8') as f:
+                    prompt_text = f.read()
+
+                formatted_prompt = prompt_text.format(
+                    project_context=project_summary,
+                    file_summaries=combined_tldrs
+                )
+
+                section_content = generate_lld_section(formatted_prompt)  # Assuming this function is defined
+                lld_markdown_content += f"## {prompt_name.replace('_', ' ').title()}\n\n{section_content}\n\n" # Add to content
+
+            except Exception as e:
+                print(f"[ERROR] Error generating section for {prompt_name}: {e}")
+                continue
+
+    # Call markdown_to_docx *after* building the complete content
     if not lld_path:
-        lld_path = os.path.join(repo_path, 'project_lld.docx')
+        lld_path = os.path.join(repo_path, 'project_lld.docx')  # Or specify your desired path
 
-    try:
-        doc = Document()
-        doc.add_heading('Low-Level Design (LLD) Document', 0)
-        doc.add_heading('Project Summary', level=1)
-        doc.add_paragraph(project_summary)
-        markdown_output = [f"# Project Summary\n\n{project_summary}\n"]
+    success = markdown_to_docx(lld_markdown_content, lld_path)  # Assuming this function is defined
 
-        # Handle the `generate_lld_document` item separately
-        if enabled_prompts.get('generate_lld_document', False):
-            # Process all hardcoded sections as before
-            for section_key, section_info in section_templates.items():
-                try:
-                    section_prompt = section_info['prompt'].format(
-                        project_context=project_summary,
-                        file_summaries=combined_tldrs
-                    )
-                    section_content = generate_lld_section(section_prompt)
-
-                    # Check for diagrams and replace with Mermaid
-                    mermaid_code = replace_diagrams_with_mermaid(section_content)
-                    if mermaid_code:
-                        # Generate Mermaid diagram image
-                        diagram_image = mermaid_to_image(mermaid_code)
-                        if diagram_image:
-                            # Add the diagram to the document
-                            doc.add_heading(section_info['heading'], level=1)
-                            doc.add_paragraph(section_content)
-                            doc.add_picture(diagram_image, width=Inches(6))  # Add the image
-                            markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n![Mermaid Diagram](diagram.png)\n")
-                        else:
-                            # Fallback to text content if diagram generation fails
-                            doc.add_heading(section_info['heading'], level=1)
-                            doc.add_paragraph(section_content)
-                            markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n")
-                    else:
-                        # No diagram found, add text content as is
-                        doc.add_heading(section_info['heading'], level=1)
-                        doc.add_paragraph(section_content)
-                        markdown_output.append(f"## {section_info['title']}\n\n{section_content}\n")
-
-                    print(f"[INFO] Generated content for {section_key}:\n{section_content}\n")
-                except Exception as e:
-                    print(f"[ERROR] Error generating section for {section_key}: {e}")
-                    continue
-
-        # Handle other enabled prompts
-        for prompt_name, is_enabled in enabled_prompts.items():
-            if prompt_name == 'generate_lld_document':
-                continue  # Skip, as it's already handled above
-
-            if is_enabled:
-                try:
-                    # Fetch the prompt text from the corresponding file
-                    prompt_file_path = os.path.join("prompts", f"{prompt_name}.md")
-                    if not os.path.exists(prompt_file_path):
-                        print(f"[WARN] Prompt file not found: {prompt_file_path}")
-                        continue
-
-                    with open(prompt_file_path, 'r', encoding='utf-8') as f:
-                        prompt_text = f.read()
-
-                    # Format the prompt with the combined summaries
-                    formatted_prompt = prompt_text.format(
-                        project_context=project_summary,
-                        file_summaries=combined_tldrs
-                    )
-
-                    # Generate content for this prompt
-                    section_content = generate_lld_section(formatted_prompt)
-                    doc.add_heading(prompt_name.replace("_", " ").title(), level=1)
-                    doc.add_paragraph(section_content)
-                    markdown_output.append(f"## {prompt_name.replace('_', ' ').title()}\n\n{section_content}\n")
-                    print(f"[INFO] Generated content for {prompt_name}:\n{section_content}\n")
-                except Exception as e:
-                    print(f"[ERROR] Error generating section for {prompt_name}: {e}")
-                    continue
-
-        # Save the document
-        doc.save(lld_path)
-        print(f"[INFO] Document saved to {lld_path}")
-        return lld_path, "\n\n".join(markdown_output)
-    except Exception as e:
-        raise Exception(f"[CRITICAL] Error saving document: {e}")
-    
+    if success:
+        print(f"[INFO] LLD document saved to {lld_path}")
+        return lld_path, lld_markdown_content # Return both path and content
+    else:
+        print(f"[ERROR] Failed to generate LLD document.")
+        return None, None  # Or raise an exception if you prefer
     
 section_templates = {
     'introduction': {
@@ -666,31 +581,3 @@ def generate_content_string(data):
 
     add_file_content(data)
     return content
-
-def generate_mermaid_diagram(text):
-    """Generate a Mermaid diagram from text description."""
-    try:
-        # Extract or generate diagram syntax from text
-        if "```mermaid" in text:
-            # Extract existing diagram
-            start = text.find("```mermaid") + 10
-            end = text.find("```", start)
-            return text[start:end].strip()
-        else:
-            # Generate new diagram based on text description
-            diagram = "graph TD\n"
-            # Add basic diagram elements based on text analysis
-            components = [line.strip() for line in text.split("\n") if line.strip()]
-            for i, comp in enumerate(components):
-                if len(comp) > 50:  # Skip long lines
-                    continue
-                # Clean component name for diagram
-                clean_comp = re.sub(r'[^\w\s-]', '', comp)
-                if clean_comp:
-                    diagram += f"    A{i}[{clean_comp}]\n"
-                    if i > 0:
-                        diagram += f"    A{i-1} --> A{i}\n"
-            return diagram
-    except Exception as e:
-        print(f"Error generating Mermaid diagram: {str(e)}")
-        return ""
