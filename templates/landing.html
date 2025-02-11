@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TecDocAuto - Automate Your Code Documentation</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+        background-color: #f4f4f9;
+      }
+      header {
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        color: #fff;
+        padding: 60px 20px;
+        text-align: center;
+      }
+      header h1 {
+        font-size: 3em;
+        margin: 0;
+        line-height: 1.2;
+      }
+      header p {
+        font-size: 1.2em;
+        margin: 20px 0;
+      }
+      .cta-button {
+        display: inline-block;
+        padding: 15px 30px;
+        margin-top: 20px;
+        background-color: #ff6f61;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 50px;
+        font-size: 1em;
+        transition: background-color 0.3s ease;
+      }
+      .cta-button:hover {
+        background-color: #e65c50;
+      }
+      section {
+        padding: 60px 20px;
+        text-align: center;
+      }
+      section h2 {
+        font-size: 2.5em;
+        margin-bottom: 20px;
+        color: #333;
+      }
+      section p {
+        font-size: 1.1em;
+        margin-bottom: 40px;
+        color: #666;
+      }
+      .features,
+      .pricing,
+      .faq {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .feature,
+      .pricing-plan,
+      .faq-item {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        width: 300px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .feature:hover,
+      .pricing-plan:hover,
+      .faq-item:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      }
+      .feature h3,
+      .pricing-plan h3,
+      .faq-item h3 {
+        font-size: 1.8em;
+        margin-bottom: 15px;
+        color: #333;
+      }
+      .pricing-plan ul {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0 0;
+        text-align: left;
+      }
+      .pricing-plan ul li {
+        font-size: 1em;
+        margin: 10px 0;
+        color: #666;
+      }
+      footer {
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        padding: 20px;
+      }
+      footer nav a {
+        color: #fff;
+        margin: 0 15px;
+        text-decoration: none;
+        font-size: 1em;
+      }
+      footer nav a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Streamline Your Code Documentation with TecDocAuto</h1>
+      <p>
+        Effortlessly generate and maintain up-to-date documentation directly
+        within GitHub.
+      </p>
+      <a href="#" class="cta-button">Get Started with GitHub</a>
+    </header>
+
+    <section>
+      <h2>Why Choose TecDocAuto?</h2>
+      <p>
+        Experience seamless integration and real-time updates that keep your
+        documentation accurate and relevant.
+      </p>
+      <div class="features">
+        <div class="feature">
+          <h3>Automated Updates</h3>
+          <p>
+            Automatically generate and update your code documentation with every
+            commit.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Seamless Integration</h3>
+          <p>
+            Integrates effortlessly with GitHub, ensuring a smooth workflow.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Multi-Language Support</h3>
+          <p>
+            Supports languages like TypeScript, JavaScript, Python, Java, PHP,
+            Dart, C, and C++.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Flexible Pricing Plans</h2>
+      <p>Choose a plan that fits your needs and scale as you grow.</p>
+      <div class="pricing">
+        <div class="pricing-plan">
+          <h3>Free</h3>
+          <p>$0 / month</p>
+          <ul>
+            <li>1 Project</li>
+            <li>Up to 500 lines of code per month</li>
+            <li>Unlimited team members</li>
+          </ul>
+        </div>
+        <div class="pricing-plan">
+          <h3>Starter</h3>
+          <p>$17 / month</p>
+          <ul>
+            <li>Up to 3 Projects</li>
+            <li>Up to 10k lines of code per month</li>
+            <li>Unlimited team members</li>
+          </ul>
+        </div>
+        <div class="pricing-plan">
+          <h3>Team</h3>
+          <p>$29 / month</p>
+          <ul>
+            <li>Up to 15 Projects</li>
+            <li>Up to 100k lines of code per month</li>
+            <li>Unlimited team members</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq">
+        <div class="faq-item">
+          <h3>Can I customize the generated documentation?</h3>
+          <p>
+            Yes, TecDocAuto allows for customization to fit your project's
+            specific needs.
+          </p>
+        </div>
+        <div class="faq-item">
+          <h3>How are lines of code calculated?</h3>
+          <p>
+            Lines of code are calculated based on the number of lines in your
+            source files.
+          </p>
+        </div>
+        <div class="faq-item">
+          <h3>What if I encounter an issue?</h3>
+          <p>
+            Our support team is available 24/7 to assist you with any problems
+            or questions.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <nav>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#">Contact Us</a>
+      </nav>
+      <p>&copy; 2025 TecDocAuto. All rights reserved.</p>
+    </footer>
+  </body>
+</html>
