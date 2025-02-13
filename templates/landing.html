@@ -3,29 +3,71 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TecDocAuto - Automate Your Code Documentation</title>
+    <title>TecDocAuto - AI-Powered Low-Level Design Documentation</title>
     <style>
+      /* General Styles */
       body {
         margin: 0;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         color: #333;
         background-color: #f4f4f9;
+        line-height: 1.6;
       }
-      header {
+
+      /* Navigation Bar */
+      .navbar {
+        position: sticky;
+        top: 0;
         background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
         color: #fff;
-        padding: 60px 20px;
-        text-align: center;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 1000;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
-      header h1 {
-        font-size: 3em;
+
+      .navbar h1 {
+        font-size: 1.5em;
+        margin: 0;
+      }
+
+      .navbar nav a {
+        color: #fff;
+        text-decoration: none;
+        margin: 0 15px;
+        font-size: 1em;
+        transition: opacity 0.3s ease;
+      }
+
+      .navbar nav a:hover {
+        opacity: 0.8;
+      }
+
+      /* Hero Section */
+      .hero {
+        height: 100vh;
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        color: #fff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 0 20px;
+      }
+
+      .hero h1 {
+        font-size: 2.5em;
         margin: 0;
         line-height: 1.2;
       }
-      header p {
+
+      .hero p {
         font-size: 1.2em;
         margin: 20px 0;
       }
+
       .cta-button {
         display: inline-block;
         padding: 15px 30px;
@@ -35,95 +77,170 @@
         text-decoration: none;
         border-radius: 50px;
         font-size: 1em;
-        transition: background-color 0.3s ease;
+        transition: background-color 0.3s ease, transform 0.3s ease;
       }
+
       .cta-button:hover {
         background-color: #e65c50;
+        transform: scale(1.05);
       }
+
+      /* Sections */
       section {
-        padding: 60px 20px;
+        padding: 80px 20px;
         text-align: center;
       }
+
       section h2 {
-        font-size: 2.5em;
+        font-size: 2em;
         margin-bottom: 20px;
         color: #333;
       }
+
       section p {
         font-size: 1.1em;
         margin-bottom: 40px;
         color: #666;
       }
+
+      /* Cards */
       .features,
       .pricing,
       .faq {
         display: flex;
         justify-content: center;
         flex-wrap: wrap;
-        gap: 20px;
+        gap: 30px;
       }
+
       .feature,
       .pricing-plan,
       .faq-item {
         background-color: #fff;
         padding: 30px;
-        border-radius: 10px;
+        border-radius: 20px;
         width: 300px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        position: relative;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
       }
+
+      .feature::before,
+      .pricing-plan::before,
+      .faq-item::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        border-radius: 20px;
+        z-index: -1;
+      }
+
       .feature:hover,
       .pricing-plan:hover,
       .faq-item:hover {
         transform: translateY(-10px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
       }
+
       .feature h3,
       .pricing-plan h3,
       .faq-item h3 {
-        font-size: 1.8em;
+        font-size: 1.5em;
         margin-bottom: 15px;
         color: #333;
       }
+
       .pricing-plan ul {
         list-style: none;
         padding: 0;
         margin: 20px 0 0;
         text-align: left;
       }
+
       .pricing-plan ul li {
         font-size: 1em;
         margin: 10px 0;
         color: #666;
       }
+
+      /* Footer */
       footer {
         background-color: #333;
         color: #fff;
         text-align: center;
         padding: 20px;
       }
+
       footer nav a {
         color: #fff;
         margin: 0 15px;
         text-decoration: none;
         font-size: 1em;
       }
+
       footer nav a:hover {
         text-decoration: underline;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .navbar {
+          flex-direction: column;
+          text-align: center;
+        }
+
+        .navbar nav {
+          margin-top: 10px;
+        }
+
+        .hero h1 {
+          font-size: 2em;
+        }
+
+        .hero p {
+          font-size: 1em;
+        }
+
+        .feature,
+        .pricing-plan,
+        .faq-item {
+          width: 100%;
+        }
       }
     </style>
   </head>
   <body>
-    <header>
-      <h1>Streamline Your Code Documentation with TecDocAuto</h1>
-      <p>
-        Effortlessly generate and maintain up-to-date documentation directly
-        within GitHub.
-      </p>
-      <a href="#" class="cta-button">Get Started with GitHub</a>
-    </header>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+      <h1>TecDocAuto</h1>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
 
-    <section>
+    <!-- Hero Section -->
+    <div class="hero">
+      <div>
+        <h1>AI-Powered Low-Level Design Documentation</h1>
+        <p>
+          Automate your code documentation with TecDocAuto. Effortlessly
+          generate and maintain up-to-date documentation directly within GitHub.
+        </p>
+        <a href="#" class="cta-button">Get Started with GitHub</a>
+      </div>
+    </div>
+
+    <!-- Features Section -->
+    <section id="features">
       <h2>Why Choose TecDocAuto?</h2>
       <p>
         Experience seamless integration and real-time updates that keep your
@@ -153,7 +270,8 @@
       </div>
     </section>
 
-    <section>
+    <!-- Pricing Section -->
+    <section id="pricing">
       <h2>Flexible Pricing Plans</h2>
       <p>Choose a plan that fits your needs and scale as you grow.</p>
       <div class="pricing">
@@ -187,7 +305,8 @@
       </div>
     </section>
 
-    <section>
+    <!-- FAQ Section -->
+    <section id="faq">
       <h2>Frequently Asked Questions</h2>
       <div class="faq">
         <div class="faq-item">
@@ -214,7 +333,8 @@
       </div>
     </section>
 
-    <footer>
+    <!-- Footer -->
+    <footer id="contact">
       <nav>
         <a href="#">Privacy Policy</a>
         <a href="#">Terms of Service</a>
