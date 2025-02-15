@@ -4,21 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TecDocAuto - AI-Powered Low-Level Design Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Honk&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
       /* General Styles */
       body {
         margin: 0;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-family: "Poppins", sans-serif;
         color: #333;
-        background-color: #f4f4f9;
+        background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
         line-height: 1.6;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: "Honk", cursive;
+        font-weight: normal;
       }
 
       /* Navigation Bar */
       .navbar {
         position: sticky;
         top: 0;
-        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
         color: #fff;
         padding: 15px 20px;
         display: flex;
@@ -29,8 +46,11 @@
       }
 
       .navbar h1 {
-        font-size: 1.5em;
+        font-size: 2.5em;
         margin: 0;
+        background: linear-gradient(135deg, #fff, #e0e0e0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
 
       .navbar nav a {
@@ -48,7 +68,7 @@
       /* Hero Section */
       .hero {
         height: 100vh;
-        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
         color: #fff;
         display: flex;
         justify-content: center;
@@ -58,30 +78,36 @@
       }
 
       .hero h1 {
-        font-size: 2.5em;
+        font-size: 4em;
         margin: 0;
         line-height: 1.2;
+        background: linear-gradient(135deg, #fff, #e0e0e0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: fadeIn 2s ease-in-out;
       }
 
       .hero p {
         font-size: 1.2em;
         margin: 20px 0;
+        animation: fadeIn 2.5s ease-in-out;
       }
 
       .cta-button {
         display: inline-block;
         padding: 15px 30px;
         margin-top: 20px;
-        background-color: #ff6f61;
-        color: #fff;
+        background-color: #fff;
+        color: #2575fc;
         text-decoration: none;
         border-radius: 50px;
         font-size: 1em;
         transition: background-color 0.3s ease, transform 0.3s ease;
+        animation: fadeIn 3s ease-in-out;
       }
 
       .cta-button:hover {
-        background-color: #e65c50;
+        background-color: #e0e0e0;
         transform: scale(1.05);
       }
 
@@ -92,15 +118,19 @@
       }
 
       section h2 {
-        font-size: 2em;
+        font-size: 3em;
         margin-bottom: 20px;
-        color: #333;
+        background: linear-gradient(135deg, #fff, #e0e0e0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: fadeIn 1s ease-in-out;
       }
 
       section p {
         font-size: 1.1em;
         margin-bottom: 40px;
-        color: #666;
+        color: #fff;
+        animation: fadeIn 1.5s ease-in-out;
       }
 
       /* Cards */
@@ -116,7 +146,7 @@
       .feature,
       .pricing-plan,
       .faq-item {
-        background-color: #fff;
+        background-color: rgba(255, 255, 255, 0.9);
         padding: 30px;
         border-radius: 20px;
         width: 300px;
@@ -124,7 +154,8 @@
         background-clip: padding-box;
         position: relative;
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        transition: transform 0.3s ease, box-shadow 0.3s ease,
+          border-width 0.3s ease;
       }
 
       .feature::before,
@@ -136,24 +167,31 @@
         left: -2px;
         right: -2px;
         bottom: -2px;
-        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
         border-radius: 20px;
         z-index: -1;
+        transition: opacity 0.3s ease;
       }
 
       .feature:hover,
       .pricing-plan:hover,
       .faq-item:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+        transform: scale(1.05);
+        border-width: 4px;
       }
 
       .feature h3,
       .pricing-plan h3,
       .faq-item h3 {
-        font-size: 1.5em;
+        font-size: 1.8em;
         margin-bottom: 15px;
-        color: #333;
+        color: #2575fc;
+      }
+
+      .feature p,
+      .pricing-plan p,
+      .faq-item p {
+        color: #666;
       }
 
       .pricing-plan ul {
@@ -169,23 +207,27 @@
         color: #666;
       }
 
-      /* Footer */
-      footer {
-        background-color: #333;
-        color: #fff;
-        text-align: center;
-        padding: 20px;
+      /* SVG Patterns */
+      .svg-pattern {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        opacity: 0.1;
       }
 
-      footer nav a {
-        color: #fff;
-        margin: 0 15px;
-        text-decoration: none;
-        font-size: 1em;
-      }
-
-      footer nav a:hover {
-        text-decoration: underline;
+      /* Animations */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       /* Responsive Design */
@@ -200,7 +242,7 @@
         }
 
         .hero h1 {
-          font-size: 2em;
+          font-size: 2.5em;
         }
 
         .hero p {
