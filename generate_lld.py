@@ -57,7 +57,7 @@ def generate_tldr(file_content, file_path):
     """
     
     response = client.chat.completions.create(
-        model="meta-llama/llama-3.2-3b-instruct:free",
+        model="meta-llama/llama-3.3-70b-instruct:free",
         messages=[
             {"role": "user", "content": prompt}
         ]
@@ -67,7 +67,7 @@ def generate_tldr(file_content, file_path):
 
 def generate_lld_section(prompt):
     response = client.chat.completions.create(
-        model="meta-llama/llama-3.2-3b-instruct:free",
+        model="meta-llama/llama-3.3-70b-instruct:free",
         messages=[
             {"role": "user", "content": prompt}
         ]
