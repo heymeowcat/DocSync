@@ -143,7 +143,7 @@ def generate_tldr(file_content, file_path):
     """
     
     response = client.chat.completions.create(
-        model="meta-llama/llama-3.2-3b-instruct:free",
+        model="cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
         messages=[{"role": "user", "content": prompt}]
     )
     
@@ -152,7 +152,7 @@ def generate_tldr(file_content, file_path):
 def generate_lld_section(prompt):
     """Generate an LLD section based on a prompt."""
     response = client.chat.completions.create(
-        model="meta-llama/llama-3.2-3b-instruct:free",
+        model="cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
         messages=[{"role": "user", "content": prompt}]
     )
     
@@ -328,16 +328,16 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
     
     print(f"[INFO] Combined TLDRs:\n{combined_tldrs}")
 
-    project_summary = generate_lld_section(  # Assuming this function is defined
+    project_summary = generate_lld_section( 
         f"Summarize the entire project based on these file summaries:\n{combined_tldrs}"
     )
     print(f"[INFO] Project Summary:\n{project_summary}\n")
 
 
-    lld_markdown_content = f"# Project Summary\n\n{project_summary}\n\n"  # Initialize
+    lld_markdown_content = f"# Project Summary\n\n{project_summary}\n\n"  
 
     if enabled_prompts.get('generate_lld_document', False):
-        for section_key, section_info in section_templates.items(): # Assuming section_templates is defined
+        for section_key, section_info in section_templates.items():
             try:
                 section_prompt = section_info['prompt'].format(
                     project_context=project_summary,

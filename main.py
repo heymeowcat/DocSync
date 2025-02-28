@@ -8,8 +8,10 @@ import uvicorn
 import os
 
 from routes import scan_project, generate_lld
+from integrations.vcs import VCSIntegration
 
 app = FastAPI()
+vcs = VCSIntegration()
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -59,6 +61,28 @@ async def connect_github(repo_url: str):
         raise HTTPException(status_code=400, detail=f"GitHub API error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/connect_repository")
+async def connect_repository(request: Request):
+    """Connect to a GitHub or GitLab repository."""
+    try:
+        data = await request.json()
+        repo_url = data.get("repo_url")
+        
+        if not repo_url:
+            raise HTTPException(status_code=400, detail="Repository URL is required")
+        
+        # Determine if it's GitHub or GitLab
+        if "github.com" in repo_url:
+            result = await vcs.connect_github(repo_url)
+        elif "gitlab.com" in repo_url:
+            result = await vcs.connect_gitlab(repo_url)
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported repository host")
+        
+        return JSONResponse(content=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def build_github_file_tree(contents):
     """Build a file tree structure from GitHub repository contents."""

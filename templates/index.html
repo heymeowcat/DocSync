@@ -109,7 +109,7 @@
           </div>
         </form>
 
-        <form id="githubForm" class="mb-8">
+        <!-- <form id="githubForm" class="mb-8">
           <div class="space-y-4">
             <div>
               <label
@@ -133,7 +133,7 @@
               Connect GitHub
             </button>
           </div>
-        </form>
+        </form> -->
 
         <div id="resultSection" class="hidden space-y-6">
           <div
@@ -270,10 +270,34 @@
           });
         });
 
+        // Update the githubForm submit handler
         $("#githubForm").on("submit", function (e) {
           e.preventDefault();
           const repoUrl = $("#githubRepo").val();
-          alert(`GitHub integration for ${repoUrl} is under development.`);
+
+          $.ajax({
+            url: "/connect_repository",
+            type: "POST",
+            data: JSON.stringify({
+              repo_url: repoUrl,
+            }),
+            contentType: "application/json",
+            success: function (response) {
+              showFileSelectionModal(response.tree, response.prompts);
+
+              // Display repository info
+              const repoInfo = response.repo_info;
+              alert(
+                `Connected to repository: ${repoInfo.name}\n` +
+                  `Description: ${repoInfo.description}\n` +
+                  `Default Branch: ${repoInfo.default_branch}\n` +
+                  `Stars: ${repoInfo.stars}`
+              );
+            },
+            error: function (xhr, status, error) {
+              alert("Failed to connect to repository: " + error);
+            },
+          });
         });
 
         function buildFileTree(tree, container) {
