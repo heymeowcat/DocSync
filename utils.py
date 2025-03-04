@@ -13,6 +13,8 @@ from os.path import join, dirname
 from docx.shared import Inches
 import markdown
 import pypandoc
+from git import Repo
+import datetime
 
 # Load environment variables
 dotenv_path = join(dirname(__file__), '.env')
@@ -40,6 +42,28 @@ DEFAULT_IGNORE_PATTERNS = [
 ]
 
 PROMPT_LIBRARY_DIR = "prompt_library"  # Directory for the prompt library
+
+
+def get_git_history(repo_path):
+    """
+    Get the Git commit history of the repository
+    Returns a list of dictionaries containing commit information
+    """
+    try:
+        repo = Repo(repo_path)
+        commits = []
+        for commit in repo.iter_commits():
+            commits.append({
+                'hash': commit.hexsha,
+                'author': commit.author.name,
+                'date': datetime.datetime.fromtimestamp(commit.committed_date).strftime('%Y-%m-%d %H:%M:%S'),
+                'message': commit.message.strip(),
+                'files': [item.a_path for item in commit.diff(commit.parents[0])] if commit.parents else []
+            })
+        return commits
+    except Exception as e:
+        print(f"Error getting git history: {e}")
+        return []
 
 def markdown_to_docx(markdown_content, output_path):
     """Convert markdown content to DOCX using pandoc."""
@@ -292,6 +316,12 @@ def count_tokens(text):
 def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_path=None):
     """Generate LLD document from selected files."""
 
+    git_history = get_git_history(repo_path)
+    commit_context = "\n".join([
+        f"Commit: {c['hash'][:8]} | {c['date']} | {c['author']}\n{c['message']}\n"
+        for c in git_history
+    ])
+
     if not os.path.exists(repo_path):
         raise FileNotFoundError(f"Repository path {repo_path} does not exist")
     if not selected_files:
@@ -329,7 +359,13 @@ def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_
     print(f"[INFO] Combined TLDRs:\n{combined_tldrs}")
 
     project_summary = generate_lld_section( 
-        f"Summarize the entire project based on these file summaries:\n{combined_tldrs}"
+        f"""Summarize the entire project based on these file summaries and git history:
+        
+        File Summaries:
+        {combined_tldrs}
+        
+        Git History:
+        {commit_context}"""
     )
     print(f"[INFO] Project Summary:\n{project_summary}\n")
 
