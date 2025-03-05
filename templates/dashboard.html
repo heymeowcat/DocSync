@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TecDocAuto - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-dark@4/dark.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/file-tree-generator@1.1.0/dist/file-tree-generator.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-tree-generator@1.1.0/dist/file-tree-generator.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="repo-selector" v-if="!selectedRepo">
+            <h2>Select a Repository</h2>
+            <div class="repo-list">
+                <div v-for="repo in repositories" :key="repo.id" class="repo-card" @click="selectRepo(repo)">
+                    <h3>{{ repo.name }}</h3>
+                    <p>{{ repo.description }}</p>
+                    <div class="repo-stats">
+                        <span>⭐ {{ repo.stars }}</span>
+                        <span>🔄 {{ repo.default_branch }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="file-selector" v-else>
+            <div class="file-tree"></div>
+            <div class="selected-files">
+                <h3>Selected Files</h3>
+                <ul>
+                    <li v-for="file in selectedFiles" :key="file">
+                        {{ file }}
+                        <button @click="removeFile(file)">×</button>
+                    </li>
+                </ul>
+                <button @click="processFiles" :disabled="!selectedFiles.length">
+                    Process Files
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                repositories: [],
+                selectedRepo: null,
+                selectedFiles: [],
+                fileTree: null
+            },
+            mounted() {
+                this.fetchRepositories();
+            },
+            methods: {
+                async fetchRepositories() {
+                    const response = await fetch('/api/repositories');
+                    this.repositories = await response.json();
+                },
+                selectRepo(repo) {
+                    this.selectedRepo = repo;
+                    this.initializeFileTree(repo);
+                },
+                async initializeFileTree(repo) {
+                    const response = await fetch(`/api/repository/${repo.id}/files`);
+                    const files = await response.json();
+                    
+                    this.fileTree = new FileTree('.file-tree', {
+                        data: files,
+                        onChange: (selected) => {
+                            this.selectedFiles = selected;
+                        }
+                    });
+                },
+                removeFile(file) {
+                    this.selectedFiles = this.selectedFiles.filter(f => f !== file);
+                },
+                async processFiles() {
+                    try {
+                        const response = await fetch('/api/process', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                repository: this.selectedRepo.id,
+                                files: this.selectedFiles
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        window.location.href = `/result/${result.id}`;
+                    } catch (error) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Failed to process files',
+                            icon: 'error'
+                        });
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
