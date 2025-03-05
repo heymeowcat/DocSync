@@ -7,7 +7,7 @@ from github import Github, GithubException
 import uvicorn
 import os
 
-from routes import scan_project, generate_lld
+from routes import scan_project, generate_lld,  auth, dashboard
 from integrations.vcs import VCSIntegration
 
 app = FastAPI()
@@ -29,6 +29,8 @@ app.add_middleware(
 # Include routes
 app.include_router(scan_project.router)
 app.include_router(generate_lld.router)
+app.include_router(auth.router)
+app.include_router(dashboard.router)
 
 # GitHub OAuth credentials (replace with your own)
 GITHUB_ACCESS_TOKEN = os.getenv("GITHUB_ACCESS_TOKEN", "your_github_access_token")
