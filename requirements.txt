@@ -62,7 +62,7 @@ starlette==0.41.3
 sympy==1.13.1
 tiktoken==0.8.0
 tokenizers==0.20.4
-torch==2.5.1
+torch==2.6.0
 tqdm==4.67.1
 transformers==4.48.0
 typing_extensions==4.12.2
