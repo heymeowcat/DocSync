@@ -64,7 +64,7 @@ tiktoken==0.8.0
 tokenizers==0.20.4
 torch==2.5.1
 tqdm==4.67.1
-transformers==4.48.0
+transformers==4.50.0
 typing_extensions==4.12.2
 urllib3==2.2.3
 uvicorn==0.32.1
