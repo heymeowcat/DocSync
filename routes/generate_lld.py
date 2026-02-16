@@ -20,9 +20,6 @@ class GenerateLLDRequest(BaseModel):
 @router.post("/generate_lld")
 async def generate_lld(request: GenerateLLDRequest):
     """Generate an LLD document based on the selected files and prompts."""
-    print("Received project path:", request.project_path)
-    print("Selected files:", request.selected_files)
-    print("Enabled prompts:", request.enabled_prompts)
     try:
         # Validate the project path
         if not os.path.exists(request.project_path):
