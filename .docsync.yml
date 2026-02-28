@@ -1,0 +1,9 @@
+docs_paths:
+  - docs
+  - README.md
+  - CHANGELOG.md
+ignore:
+  - '*.lock'
+  - node_modules
+  - .git
+threshold: 0.0
