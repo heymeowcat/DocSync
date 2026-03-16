@@ -10,7 +10,9 @@ from .analyzer import analyze_drift, make_client
 from .config import load_config
 from .git import changed_files, diff_text, is_git_repo
 from .matcher import filter_ignored, find_docs, heuristic_match
+from .providers import list_llm_providers
 from .report import build_report, write_report
+from .vcs import list_vcs_providers
 
 
 def cmd_init(args) -> int:
@@ -79,9 +81,18 @@ def cmd_review(args) -> int:
     return 0
 
 
+def cmd_providers(args) -> int:
+    print("LLM providers:", ", ".join(list_llm_providers()))
+    print("VCS providers:", ", ".join(list_vcs_providers()))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docsync", description="Keep docs in sync with code.")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p_prov = sub.add_parser("providers", help="List supported providers")
+    p_prov.set_defaults(func=cmd_providers)
 
     p_init = sub.add_parser("init", help="Create a default .docsync.yml")
     p_init.add_argument("--force", action="store_true")

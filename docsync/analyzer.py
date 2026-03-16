@@ -5,20 +5,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from .providers import create_llm_client
+
 logger = logging.getLogger(__name__)
 
 
 def make_client(config) -> Any:
-    """Create an OpenAI-compatible client, or None if no API key."""
-    if not config.api_key:
-        return None
-    try:
-        from openai import OpenAI
-
-        return OpenAI(base_url=config.base_url, api_key=config.api_key)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Could not create LLM client: %s", exc)
-        return None
+    """Create an LLM client based on config.provider."""
+    return create_llm_client(config)
 
 
 def analyze_drift(client, config, changed_files: list[str], diff: str, candidate_docs: dict[str, str], spec: str | None = None) -> str:
@@ -29,20 +23,21 @@ def analyze_drift(client, config, changed_files: list[str], diff: str, candidate
     docs_block = "\n\n".join(
         f"### {path}\n{content[:4000]}" for path, content in candidate_docs.items()
     )
+    spec_block = ("Specification/ticket:\n" + spec + "\n\n") if spec else ""
     prompt = (
         "You are a documentation maintainer. Given a code diff and candidate "
         "documentation files, identify which docs are stale or need updates, "
         "and propose concrete edits.\n\n"
-        ("Specification/ticket:\n" + spec + "\n\n" if spec else "") +
-        "Changed files:\n" + "\n".join(f"- {p}" for p in changed_files) + "\n\n"
-        "Diff:\n```diff\n" + diff[:12000] + "\n```\n\n"
-        "Candidate docs:\n" + docs_block + "\n\n"
-        "Respond in Markdown with sections: 'Affected docs', 'Suggested updates', "
-        "'Risk level (low/medium/high)'."
+        + spec_block
+        + "Changed files:\n" + "\n".join(f"- {p}" for p in changed_files) + "\n\n"
+        + "Diff:\n```diff\n" + diff[:12000] + "\n```\n\n"
+        + "Candidate docs:\n" + docs_block + "\n\n"
+        + "Respond in Markdown with sections: 'Affected docs', 'Suggested updates', "
+        + "'Risk level (low/medium/high)'."
     )
     try:
         response = client.chat.completions.create(
-            model=config.model if hasattr(config, "model") else "gpt-4o-mini",
+            model=config.model,
             messages=[{"role": "user", "content": prompt}],
         )
         return response.choices[0].message.content.strip()

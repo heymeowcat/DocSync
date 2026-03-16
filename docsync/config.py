@@ -13,8 +13,10 @@ DEFAULT_CONFIG = {
     "docs_paths": ["docs", "README.md", "CHANGELOG.md"],
     "ignore": ["*.lock", "node_modules", ".git"],
     "threshold": 0.0,
+    "provider": "openrouter",
     "model": "cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
-    "base_url": "https://openrouter.ai/api/v1",
+    "base_url": "",
+    "api_key": "",
     "api_key_env": "OPENROUTER_API_KEY",
 }
 
@@ -24,12 +26,16 @@ class Config:
     docs_paths: list[str] = field(default_factory=lambda: list(DEFAULT_CONFIG["docs_paths"]))
     ignore: list[str] = field(default_factory=lambda: list(DEFAULT_CONFIG["ignore"]))
     threshold: float = 0.0
+    provider: str = DEFAULT_CONFIG["provider"]
     model: str = DEFAULT_CONFIG["model"]
     base_url: str = DEFAULT_CONFIG["base_url"]
+    api_key: str = DEFAULT_CONFIG["api_key"]
     api_key_env: str = DEFAULT_CONFIG["api_key_env"]
 
     @property
-    def api_key(self) -> str:
+    def resolved_api_key(self) -> str:
+        if self.api_key:
+            return self.api_key
         return os.environ.get(self.api_key_env, "")
 
 
@@ -45,7 +51,7 @@ def load_config(path: str | Path | None = None) -> Config:
     with open(path, encoding="utf-8") as fh:
         data: dict[str, Any] = yaml.safe_load(fh) or {}
     cfg = Config()
-    for key in ("docs_paths", "ignore", "threshold", "model", "base_url", "api_key_env"):
+    for key in ("docs_paths", "ignore", "threshold", "provider", "model", "base_url", "api_key", "api_key_env"):
         if key in data:
             setattr(cfg, key, data[key])
     return cfg

@@ -41,8 +41,13 @@ ignore:
 threshold: 0.0
 ```
 
-Set `OPENROUTER_API_KEY` for LLM-powered analysis; otherwise DocSync falls back
-to heuristic matching.
+Set an API key for your chosen provider (e.g. `OPENROUTER_API_KEY`,
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`) for LLM-powered
+analysis; otherwise DocSync falls back to heuristic matching.
+
+Supported LLM providers: OpenAI, Anthropic, Gemini, Groq, Mistral, Ollama,
+OpenRouter, Together, Perplexity, Cohere, Azure OpenAI, Hugging Face.
+Supported VCS providers: GitHub, GitLab, Bitbucket, Gitea.
 
 ## Development
 
