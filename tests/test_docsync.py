@@ -43,3 +43,20 @@ def test_git_changed_files(tmp_path):
     changed_files("HEAD", "HEAD", cwd=str(tmp_path)) if False else None
     # working tree changes aren't in HEAD..HEAD; test repo detection only
     assert is_git_repo(tmp_path)
+
+
+def test_list_providers():
+    from docsync.providers import list_llm_providers
+    from docsync.vcs import list_vcs_providers
+
+    assert "openai" in list_llm_providers()
+    assert "github" in list_vcs_providers()
+
+
+def test_create_llm_client_ollama():
+    from docsync.config import Config
+    from docsync.providers import create_llm_client
+
+    cfg = Config(provider="ollama", model="llama3")
+    client = create_llm_client(cfg)
+    assert client is not None
