@@ -1,53 +1,52 @@
 # DocSync
 
-**Keep documentation in sync with code.** DocSync is a CI-native tool that
-analyzes pull requests, detects documentation drift, and proposes updates.
+**DocSync is a SaaS GitHub App that keeps documentation in sync with code.**
 
-## Why
+On every pull request, DocSync analyzes the diff, detects documentation drift,
+and posts a reviewable report as a PR comment — optionally opening a draft PR
+with suggested edits. No local installation required: install the GitHub App
+and you're done.
 
-Documentation rots the moment code changes. DocSync runs on every PR, maps
-changed source files to affected docs, and posts a reviewable report (or opens a
-draft PR with suggested edits). No more "docs updated in a follow-up."
+## Features
 
-## Quick start
+- GitHub App webhook integration (no CI YAML needed)
+- Diff-aware documentation drift detection
+- Spec-vs-code gap analysis (`--spec`)
+- Multi-provider LLM support (OpenAI, Anthropic, Gemini, Groq, Mistral,
+  Ollama, OpenRouter, Together, Perplexity, Cohere, Azure OpenAI, Hugging Face)
+- Multi-VCS support (GitHub, GitLab, Bitbucket, Gitea)
+- Heuristic fallback when no LLM key is configured
+
+## Self-hosting
+
+```bash
+cp .env.example .env
+# fill in GITHUB_APP_ID, GITHUB_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET, and an LLM key
+docker compose up
+```
+
+Or run directly:
 
 ```bash
 pip install -e .
-docsync init          # creates .docsync.yml
-docsync review --base origin/main --head HEAD --output docsync-report.md
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-## GitHub Action
+Point your GitHub App's webhook URL to `https://your-host/webhook`.
 
-```yaml
-- uses: actions/checkout@v4
-  with: { fetch-depth: 0 }
-- run: pip install -e .
-- run: docsync review --base origin/${{ github.base_ref }} --head HEAD --output docsync-report.md --fail-on-drift
+## Configuration
+
+Environment variables (see `.env.example`):
+
+- `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`
+- `OPENROUTER_API_KEY` (or any provider key)
+- `DOCSYNC_PROVIDER`, `DOCSYNC_MODEL`
+
+## Local CLI (for development)
+
+```bash
+docsync review --base origin/main --head HEAD --output report.md
 ```
-
-See `.github/workflows/docsync.yml`.
-
-## Configuration (`.docsync.yml`)
-
-```yaml
-docs_paths:
-  - docs
-  - README.md
-  - CHANGELOG.md
-ignore:
-  - '*.lock'
-  - node_modules
-threshold: 0.0
-```
-
-Set an API key for your chosen provider (e.g. `OPENROUTER_API_KEY`,
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`) for LLM-powered
-analysis; otherwise DocSync falls back to heuristic matching.
-
-Supported LLM providers: OpenAI, Anthropic, Gemini, Groq, Mistral, Ollama,
-OpenRouter, Together, Perplexity, Cohere, Azure OpenAI, Hugging Face.
-Supported VCS providers: GitHub, GitLab, Bitbucket, Gitea.
 
 ## Development
 
