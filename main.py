@@ -4,17 +4,14 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
-from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from docsync.analyzer import analyze_drift, make_client
-from docsync.config import Config, load_config
+from docsync.config import load_config
 from docsync.github_app import GitHubApp
-from docsync.git import diff_text
-from docsync.matcher import filter_ignored, find_docs, heuristic_match
+from docsync.matcher import filter_ignored, heuristic_match
 from docsync.report import build_report
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
