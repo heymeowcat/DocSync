@@ -7,6 +7,12 @@ import sys
 from pathlib import Path
 
 from .analyzer import analyze_drift, make_client
+from .checks import (
+    check_markdown_links,
+    check_symbol_coverage,
+    extract_documented_symbols,
+    extract_python_symbols,
+)
 from .config import load_config
 from .git import changed_files, diff_text, is_git_repo
 from .matcher import filter_ignored, find_docs, heuristic_match
@@ -87,9 +93,52 @@ def cmd_providers(args) -> int:
     return 0
 
 
+def cmd_check(args) -> int:
+    root = Path(args.repo).resolve()
+    # symbol coverage for python files
+    code_syms: set[str] = set()
+    for py in root.rglob("*.py"):
+        rel = py.relative_to(root)
+        if any(part.startswith(".") or part in {"node_modules", "legacy"} for part in rel.parts):
+            continue
+        if ".venv" in str(py) or "site-packages" in str(py):
+            continue
+        code_syms |= extract_python_symbols(py)
+    doc_syms: set[str] = set()
+    for md in root.rglob("*.md"):
+        if ".venv" in str(md) or "site-packages" in str(md):
+            continue
+        doc_syms |= extract_documented_symbols(md.read_text(encoding="utf-8", errors="ignore"))
+    cov = check_symbol_coverage(code_syms, doc_syms)
+
+    broken_links: list[dict[str, str]] = []
+    for md in root.rglob("*.md"):
+        if ".venv" in str(md) or "site-packages" in str(md):
+            continue
+        broken_links.extend(check_markdown_links(md, root))
+
+    print(f"Symbol coverage: {cov['covered']}/{cov['total']} ({cov['coverage']*100:.1f}%)")
+    if cov["undocumented"]:
+        print("Undocumented:", ", ".join(cov["undocumented"][:20]))
+    if cov["stale_references"]:
+        print("Stale refs:", ", ".join(cov["stale_references"][:20]))
+    print(f"Broken links: {len(broken_links)}")
+    for b in broken_links[:20]:
+        print(f"  {b['file']}: {b['link']}")
+
+    if args.fail_on_issues and (cov["undocumented"] or broken_links):
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docsync", description="Keep docs in sync with code.")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p_check = sub.add_parser("check", help="Validate doc/code consistency and links")
+    p_check.add_argument("--repo", default=".", help="Repository path")
+    p_check.add_argument("--fail-on-issues", action="store_true")
+    p_check.set_defaults(func=cmd_check)
 
     p_prov = sub.add_parser("providers", help="List supported providers")
     p_prov.set_defaults(func=cmd_providers)
