@@ -18,6 +18,7 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="DocSync", version="0.3.0")
+REPORTS: list[dict] = []
 gh_app = GitHubApp()
 
 
@@ -74,6 +75,8 @@ async def process_pull_request(payload: dict) -> None:
         repo.get_issue(pr_number).create_comment(report[:65000])
         conclusion = "success" if not affected else "neutral"
         gh_app.create_check_run(repo, head_sha, "DocSync", conclusion, report[:65000])
+        REPORTS.insert(0, {"repo": repo_full, "pr": pr_number, "report": report[:5000]})
+        REPORTS[:] = REPORTS[:50]
         logger.info("Posted DocSync report to %s#%s", repo_full, pr_number)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to process PR %s#%s: %s", repo_full, pr_number, exc)
@@ -110,6 +113,10 @@ async def webhook(
     return JSONResponse(result)
 
 
+@app.get("/reports")
+async def reports():
+    return {"reports": REPORTS}
+
 @app.get("/")
 async def root():
-    return {"name": "DocSync", "docs": "/docs"}
+    return {"name": "DocSync", "docs": "/docs", "reports": "/reports"}
