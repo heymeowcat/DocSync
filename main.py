@@ -117,6 +117,54 @@ async def webhook(
 async def reports():
     return {"reports": REPORTS}
 
+@app.post("/audit")
+async def audit(request: Request, background_tasks: BackgroundTasks):
+    payload = await request.json()
+    repo_full = payload.get("repo")
+    installation_id = payload.get("installation_id")
+    if not repo_full or not installation_id:
+        raise HTTPException(status_code=400, detail="repo and installation_id required")
+    background_tasks.add_task(run_full_audit, repo_full, int(installation_id))
+    return {"status": "queued", "repo": repo_full}
+
+
+async def run_full_audit(repo_full: str, installation_id: int) -> None:
+    try:
+        client_gh = gh_app.client_for_installation(installation_id)
+        repo = client_gh.get_repo(repo_full)
+        # gather all python/doc files from default branch
+        contents = repo.get_contents("")
+        stack = list(contents if isinstance(contents, list) else [contents])
+        files: list[str] = []
+        while stack:
+            item = stack.pop()
+            if item.type == "dir":
+                try:
+                    stack.extend(repo.get_contents(item.path))
+                except Exception:  # noqa: BLE001
+                    pass
+            else:
+                files.append(item.path)
+        changed = [f for f in files if f.endswith((".py", ".md"))]
+        docs = [f for f in files if f.endswith(".md")]
+        candidate_docs = {}
+        for d in docs[:20]:
+            try:
+                f = repo.get_contents(d)
+                candidate_docs[d] = base64_decode(f.content) if hasattr(f, "content") else ""
+            except Exception:  # noqa: BLE001
+                pass
+        diff = ""
+        llm = make_client(load_config(None))
+        analysis = analyze_drift(llm, load_config(None), changed[:50], diff, candidate_docs)
+        report = build_report(changed[:50], {}, analysis)
+        REPORTS.insert(0, {"repo": repo_full, "pr": 0, "report": report[:5000], "type": "audit"})
+        REPORTS[:] = REPORTS[:50]
+        logger.info("Completed audit for %s", repo_full)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Audit failed for %s: %s", repo_full, exc)
+
+
 @app.get("/")
 async def root():
     return {"name": "DocSync", "docs": "/docs", "reports": "/reports"}
