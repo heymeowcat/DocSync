@@ -1,5 +1,6 @@
+
 from docsync.cache import FileCache
-import tempfile, os
+
 
 def test_cache_roundtrip(tmp_path):
     c = FileCache(tmp_path / "c.json")
