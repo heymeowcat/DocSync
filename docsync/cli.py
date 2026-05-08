@@ -11,7 +11,7 @@ from .checks import (
     check_markdown_links,
     check_symbol_coverage,
     extract_documented_symbols,
-    extract_python_symbols,
+    extract_symbols,
 )
 from .config import load_config
 from .git import changed_files, diff_text, is_git_repo
@@ -103,7 +103,7 @@ def cmd_check(args) -> int:
             continue
         if ".venv" in str(py) or "site-packages" in str(py):
             continue
-        code_syms |= extract_python_symbols(py)
+        code_syms |= extract_symbols(py)
     doc_syms: set[str] = set()
     for md in root.rglob("*.md"):
         if ".venv" in str(md) or "site-packages" in str(md):
