@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from docsync.analyzer import analyze_drift, make_client
 from docsync.config import load_config
-from docsync.github_app import GitHubApp
+from docsync.github_app import GitHubApp, create_fix_pr
 from docsync.matcher import filter_ignored, heuristic_match
 from docsync.report import build_report
 
@@ -87,6 +87,9 @@ async def process_pull_request(payload: dict) -> None:
                 except Exception:  # noqa: BLE001
                     pass
         repo.get_issue(pr_number).create_comment(report[:65000])
+        fix_url = create_fix_pr(gh_app, repo, base, head_sha, pr_number, affected, diff, llm, cfg)
+        if fix_url:
+            repo.get_issue(pr_number).create_comment(f"DocSync opened a draft PR with doc updates: {fix_url}")
         conclusion = "success" if not affected else "neutral"
         gh_app.create_check_run(repo, head_sha, "DocSync", conclusion, report[:65000])
         REPORTS.insert(0, {"repo": repo_full, "pr": pr_number, "report": report[:5000]})
