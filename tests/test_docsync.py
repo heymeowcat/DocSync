@@ -60,3 +60,23 @@ def test_create_llm_client_ollama():
     cfg = Config(provider="ollama", model="llama3")
     client = create_llm_client(cfg)
     assert client is not None
+
+
+def test_parse_sections():
+    from docsync.incremental import parse_sections, reassemble
+
+    md = "# Title\n\nintro\n\n## Foo\n\nfoo body\n\n## Bar\n\nbar body\n"
+    secs = parse_sections(md)
+    assert len(secs) >= 2
+    assert "Foo" in "".join(h for h, _ in secs)
+    out = reassemble(secs)
+    assert "Foo" in out
+
+
+def test_affected_sections():
+    from docsync.incremental import affected_section_indices, parse_sections
+
+    md = "## Auth\n\nlogin\n\n## Billing\n\nstripe\n"
+    secs = parse_sections(md)
+    idx = affected_section_indices(secs, ["src/auth.py"])
+    assert any("Auth" in secs[i][0] for i in idx)

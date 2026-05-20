@@ -12,6 +12,8 @@ import jwt
 import requests
 from github import Auth, Github
 
+from .incremental import regenerate_incremental
+
 logger = logging.getLogger(__name__)
 
 
@@ -126,19 +128,11 @@ def create_fix_pr(
         return None
 
 
-def _regenerate_doc(llm, cfg, path: str, old: str, diff: str) -> str:
+def _regenerate_doc(llm, cfg, path: str, old: str, diff: str, changed_files=None) -> str:
     if llm is None:
         return old
-    prompt = (
-        f"Update the following documentation file to reflect the code changes.\n"
-        f"File: {path}\n\nCurrent content:\n{old[:8000]}\n\nDiff:\n```diff\n{diff[:8000]}\n```\n\n"
-        "Return only the updated full document in Markdown."
-    )
-    try:
-        resp = llm.chat.completions.create(model=cfg.model, messages=[{"role": "user", "content": prompt}])
-        return resp.choices[0].message.content.strip()
-    except Exception:  # noqa: BLE001
-        return old
+    changed = changed_files or [path]
+    return regenerate_incremental(old, diff, changed, llm, cfg)
 
 
 def base64_decode(content: str) -> str:
