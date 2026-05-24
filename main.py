@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="DocSync", version="0.3.0")
 REPORTS: list[dict] = []
+COVERAGE: list[dict] = []
 gh_app = GitHubApp()
 
 
@@ -175,12 +176,35 @@ async def run_full_audit(repo_full: str, installation_id: int) -> None:
         llm = make_client(load_config(None))
         analysis = analyze_drift(llm, load_config(None), changed[:50], diff, candidate_docs)
         report = build_report(changed[:50], {}, analysis)
+        from docsync.checks import (
+            check_symbol_coverage,
+            extract_documented_symbols,
+        )
+        code_syms = set()
+        for f in changed:
+            if f.endswith(".py"):
+                pass
+        doc_syms = set()
+        for _d, c in candidate_docs.items():
+            doc_syms |= extract_documented_symbols(c)
+        cov = check_symbol_coverage(code_syms or set(), doc_syms)
+        COVERAGE.insert(0, {"repo": repo_full, "coverage": cov["coverage"], "total": cov["total"], "covered": cov["covered"]})
+        COVERAGE[:] = COVERAGE[:50]
         REPORTS.insert(0, {"repo": repo_full, "pr": 0, "report": report[:5000], "type": "audit"})
         REPORTS[:] = REPORTS[:50]
         logger.info("Completed audit for %s", repo_full)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Audit failed for %s: %s", repo_full, exc)
 
+
+@app.get("/coverage")
+async def coverage():
+    return {"coverage": COVERAGE}
+
+@app.get("/dashboard")
+async def dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse("<h1>DocSync Dashboard</h1><p>See /reports and /coverage</p>")
 
 @app.get("/")
 async def root():
