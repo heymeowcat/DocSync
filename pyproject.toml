@@ -1,16 +1,16 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "docsync"
-version = "0.1.0"
-description = "Keep documentation in sync with code changes via CI."
+version = "0.3.0"
+description = "Keep documentation in sync with code changes via a GitHub App."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-authors = [{ name = "TecDocAuto Contributors" }]
-keywords = ["documentation", "lld", "ai", "code-analysis"]
+authors = [{ name = "DocSync Contributors" }]
+keywords = ["documentation", "github-app", "ai", "code-review"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: FastAPI",
@@ -23,24 +23,21 @@ classifiers = [
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "pydantic>=2.9",
+    "pydantic>=2.14.1",
     "pydantic-settings>=2.6",
     "python-dotenv>=1.0",
     "openai>=1.55",
-    "GitPython>=3.1",
+    "GitPython>=3.1.62",
     "python-docx>=1.1",
-    "pypandoc>=1.13",
+    "pypandoc>=1.17",
     "tiktoken>=0.8",
     "PyGithub>=2.5",
     "python-gitlab>=5.0",
-    "PyJWT>=2.10",
+    "PyJWT>=2.15.0",
     "requests>=2.32.4",
     "markdown>=3.7",
     "jinja2>=3.1.6",
-    "pyyaml>=6.0",
-    "pyjwt>=2.8",
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.32",
+    "pyyaml>=6.0.3",
     "aiohttp>=3.13.3",
 ]
 
