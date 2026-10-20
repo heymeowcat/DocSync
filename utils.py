@@ -1,29 +1,40 @@
-import base64
-from io import BytesIO
+"""Core utilities for scanning projects and generating LLD documents."""
+
+from __future__ import annotations
+
+import datetime
+import logging
 import os
-from docx import Document
-from openai import OpenAI
 import re
-import requests
-import tiktoken
-import fnmatch
-from colorama import Fore, Style
-from dotenv import load_dotenv
 from os.path import join, dirname
-from docx.shared import Inches
+
+import fnmatch
 import markdown
 import pypandoc
+import requests
+import tiktoken
+try:
+    from colorama import Fore, Style
+except ImportError:  # pragma: no cover - optional dependency
+    class _NoColor:
+        def __getattr__(self, _name):
+            return ""
+    Fore = Style = _NoColor()
+from docx import Document
+from docx.shared import Inches
+from dotenv import load_dotenv
 from git import Repo
-import datetime
+from openai import OpenAI
 
-# Load environment variables
-dotenv_path = join(dirname(__file__), '.env')
-load_dotenv(dotenv_path)
+from config import settings
 
-# Initialize OpenAI client
+load_dotenv(join(dirname(__file__), ".env"))
+
+logger = logging.getLogger(__name__)
+
 client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.environ.get("OPENROUTER_API_KEY"),
+    base_url=settings.openrouter_base_url,
+    api_key=settings.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY", ""),
 )
 
 # Default ignore patterns
@@ -88,8 +99,14 @@ def format_prompt_name(filename):
     name = name.replace("_", " ").title()  # Replace underscores and capitalize
     return name
 
-def get_directory_tree(path: str):
-    """Recursively builds a directory tree structure."""
+def get_directory_tree(path: str, base_path: str | None = None):
+    """Recursively builds a directory tree structure.
+
+    File paths are stored relative to ``base_path`` (defaults to ``path``) so
+    that selected files can be resolved against the project root later.
+    """
+    if base_path is None:
+        base_path = path
     tree = []
     try:
         with os.scandir(path) as entries:
@@ -98,16 +115,17 @@ def get_directory_tree(path: str):
                     tree.append({
                         "type": "directory",
                         "name": entry.name,
-                        "children": get_directory_tree(entry.path)
+                        "path": os.path.relpath(entry.path, base_path),
+                        "children": get_directory_tree(entry.path, base_path),
                     })
                 elif entry.is_file():
                     tree.append({
                         "type": "file",
                         "name": entry.name,
-                        "path": entry.path
+                        "path": os.path.relpath(entry.path, base_path),
                     })
-    except Exception as e:
-        print(f"Error accessing {path}: {e}")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Error accessing %s: %s", path, e)
     return tree
 
 # Load prompts from the prompt library
@@ -161,28 +179,36 @@ def generate_folder_structure_from_upload(repo_path, ignore_patterns):
 
 def generate_tldr(file_content, file_path):
     """Generate a TLDR summary for a file."""
-    prompt = f"""Summarize the content of the following file:
-    File Path: {file_path}
-    File Content: {file_content}
-    """
-    
-    response = client.chat.completions.create(
-        model="cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
-        messages=[{"role": "user", "content": prompt}]
+    prompt = (
+        "Summarize the content of the following file concisely. "
+        "Focus on purpose, key classes/functions, and dependencies.\n\n"
+        f"File Path: {file_path}\n"
+        f"File Content:\n{file_content}\n"
     )
-    
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model=settings.openrouter_model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to generate TLDR for %s: %s", file_path, exc)
+        return ""
+
 
 def generate_lld_section(prompt):
     """Generate an LLD section based on a prompt."""
-    response = client.chat.completions.create(
-        model="cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    raw_text = response.choices[0].message.content
-    filtered_text = re.sub(r'<.*?>', '', raw_text).strip()
-    return filtered_text
+    try:
+        response = client.chat.completions.create(
+            model=settings.openrouter_model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw_text = response.choices[0].message.content
+        filtered_text = re.sub(r"<.*?>", "", raw_text).strip()
+        return filtered_text
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to generate LLD section: %s", exc)
+        return ""
 
 def analyze_directory(path, ignore_patterns, base_path, include_git=False, max_depth=None, current_depth=0):
     """Recursively analyze a directory and its contents."""
@@ -314,118 +340,128 @@ def count_tokens(text):
         return 0
 
 def generate_lld_from_directory(repo_path, selected_files, enabled_prompts, lld_path=None):
-    """Generate LLD document from selected files."""
+    """Generate an LLD document from the selected files.
 
-    git_history = get_git_history(repo_path)
-    commit_context = "\n".join([
-        f"Commit: {c['hash'][:8]} | {c['date']} | {c['author']}\n{c['message']}\n"
-        for c in git_history
-    ])
-
+    ``selected_files`` may contain paths relative to ``repo_path`` or absolute
+    paths. Prompts are loaded from the bundled ``prompt_library`` directory.
+    """
+    repo_path = os.path.abspath(repo_path)
     if not os.path.exists(repo_path):
-        raise FileNotFoundError(f"Repository path {repo_path} does not exist")
+        raise FileNotFoundError(f"Repository path does not exist: {repo_path}")
     if not selected_files:
         raise ValueError("No files selected for analysis")
 
+    git_history = get_git_history(repo_path)
+    commit_context = "\n".join(
+        f"Commit: {c['hash'][:8]} | {c['date']} | {c['author']}\n{c['message']}\n"
+        for c in git_history
+    )
+
     summaries = {}
     for file_path in selected_files:
-        full_path = '/' + file_path if not file_path.startswith('/') else file_path
-        
-        print(f"[DEBUG] Processing file: {full_path}")
-        if os.path.isfile(full_path):
-            try:
-                with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                if not content.strip():
-                    print(f"[WARN] File {file_path} is empty or unreadable.")
-                    continue
-                summary = generate_tldr(content, file_path) # Assuming this function is defined
-                if not summary:
-                    print(f"[WARN] No summary generated for {file_path}.")
-                    continue
-                summaries[file_path] = summary
-            except Exception as e:
-                print(f"[ERROR] Unable to process {file_path}: {e}")
-                continue
+        # Resolve relative paths against the repository root.
+        if os.path.isabs(file_path):
+            full_path = file_path
         else:
-            print(f"[WARN] File does not exist: {full_path}")
+            full_path = os.path.join(repo_path, file_path)
+        full_path = os.path.normpath(full_path)
+
+        logger.info("Processing file: %s", full_path)
+        if not os.path.isfile(full_path):
+            logger.warning("File does not exist: %s", full_path)
+            continue
+        try:
+            with open(full_path, "r", encoding="utf-8", errors="ignore") as fh:
+                content = fh.read()
+        except OSError as exc:
+            logger.error("Unable to read %s: %s", full_path, exc)
+            continue
+        if not content.strip():
+            logger.warning("File is empty or unreadable: %s", full_path)
+            continue
+        summary = generate_tldr(content, file_path)
+        if not summary:
+            logger.warning("No summary generated for %s", file_path)
+            continue
+        summaries[file_path] = summary
 
     combined_tldrs = "\n\n".join(
-        [f"File: {path}\nSummary: {summary}" for path, summary in summaries.items()]
+        f"File: {path}\nSummary: {summary}" for path, summary in summaries.items()
     )
     if not combined_tldrs.strip():
         raise ValueError("No summaries were generated from the provided files.")
-    
-    print(f"[INFO] Combined TLDRs:\n{combined_tldrs}")
 
-    project_summary = generate_lld_section( 
-        f"""Summarize the entire project based on these file summaries and git history:
-        
-        File Summaries:
-        {combined_tldrs}
-        
-        Git History:
-        {commit_context}"""
+    project_summary = generate_lld_section(
+        "Summarize the entire project based on these file summaries and git history.\n\n"
+        "File Summaries:\n"
+        f"{combined_tldrs}\n\n"
+        "Git History:\n"
+        f"{commit_context}"
     )
-    print(f"[INFO] Project Summary:\n{project_summary}\n")
+    if not project_summary:
+        project_summary = "Project summary could not be generated."
 
+    lld_markdown_content = f"# Project Summary\n\n{project_summary}\n\n"
 
-    lld_markdown_content = f"# Project Summary\n\n{project_summary}\n\n"  
-
-    if enabled_prompts.get('generate_lld_document', False):
+    enabled = enabled_prompts or {}
+    if enabled.get("generate_lld_document", False):
         for section_key, section_info in section_templates.items():
             try:
-                section_prompt = section_info['prompt'].format(
+                section_prompt = section_info["prompt"].format(
                     project_context=project_summary,
-                    file_summaries=combined_tldrs
+                    file_summaries=combined_tldrs,
                 )
-                section_content = generate_lld_section(section_prompt)  # Assuming this function is defined
-
-                lld_markdown_content += f"## {section_info['title']}\n\n{section_content}\n\n" # Add to content
-
-            except Exception as e:
-                print(f"[ERROR] Error generating section for {section_key}: {e}")
+                section_content = generate_lld_section(section_prompt)
+                if section_content:
+                    lld_markdown_content += (
+                        f"## {section_info['title']}\n\n{section_content}\n\n"
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Error generating section %s: %s", section_key, exc)
                 continue
 
-    for prompt_name, is_enabled in enabled_prompts.items():
-        if prompt_name == 'generate_lld_document':
+    # Extra prompts from the prompt library (files selected by the user).
+    prompt_library = load_prompts_from_library()
+    for prompt_name, is_enabled in enabled.items():
+        if prompt_name == "generate_lld_document" or not is_enabled:
             continue
+        prompt_text = prompt_library.get(prompt_name)
+        if not prompt_text:
+            # Fall back to a file on disk named like the prompt.
+            candidate = os.path.join(PROMPT_LIBRARY_DIR, prompt_name)
+            if not candidate.endswith(".md"):
+                candidate += ".md"
+            if os.path.exists(candidate):
+                with open(candidate, "r", encoding="utf-8") as fh:
+                    prompt_text = fh.read()
+        if not prompt_text:
+            logger.warning("Prompt not found: %s", prompt_name)
+            continue
+        try:
+            formatted_prompt = prompt_text.format(
+                project_context=project_summary,
+                file_summaries=combined_tldrs,
+            )
+        except (KeyError, ValueError):
+            # Prompt templates without placeholders are used verbatim.
+            formatted_prompt = prompt_text
+        section_content = generate_lld_section(formatted_prompt)
+        if section_content:
+            title = prompt_name.replace("_", " ").replace(".md", "").title()
+            lld_markdown_content += f"## {title}\n\n{section_content}\n\n"
 
-        if is_enabled:
-            try:
-                prompt_file_path = os.path.join("prompts", f"{prompt_name}.md") # Adjust path as needed
-                if not os.path.exists(prompt_file_path):
-                    print(f"[WARN] Prompt file not found: {prompt_file_path}")
-                    continue
-
-                with open(prompt_file_path, 'r', encoding='utf-8') as f:
-                    prompt_text = f.read()
-
-                formatted_prompt = prompt_text.format(
-                    project_context=project_summary,
-                    file_summaries=combined_tldrs
-                )
-
-                section_content = generate_lld_section(formatted_prompt)  # Assuming this function is defined
-                lld_markdown_content += f"## {prompt_name.replace('_', ' ').title()}\n\n{section_content}\n\n" # Add to content
-
-            except Exception as e:
-                print(f"[ERROR] Error generating section for {prompt_name}: {e}")
-                continue
-
-    # Call markdown_to_docx *after* building the complete content
     if not lld_path:
-        lld_path = os.path.join(repo_path, 'project_lld.docx')  # Or specify your desired path
+        lld_path = os.path.join(repo_path, "project_lld.docx")
 
-    success = markdown_to_docx(lld_markdown_content, lld_path)  # Assuming this function is defined
-
+    success = markdown_to_docx(lld_markdown_content, lld_path)
     if success:
-        print(f"[INFO] LLD document saved to {lld_path}")
-        return lld_path, lld_markdown_content # Return both path and content
-    else:
-        print(f"[ERROR] Failed to generate LLD document.")
-        return None, None  # Or raise an exception if you prefer
-    
+        logger.info("LLD document saved to %s", lld_path)
+        return lld_path, lld_markdown_content
+    logger.error("Failed to generate LLD document.")
+    return None, None
+
+
+
 section_templates = {
     'introduction': {
         'heading': '1. Introduction',
