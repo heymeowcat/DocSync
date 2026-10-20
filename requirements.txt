@@ -40,7 +40,7 @@ numpy==2.0.2
 openai==1.55.2
 packaging==24.2
 pathspec==0.12.1
-propcache==0.2.1
+propcache==0.5.4
 pycparser==2.22
 pydantic==2.10.2
 pydantic_core==2.27.1
