@@ -109,10 +109,17 @@ async def connect_repository(request: Request):
 
 @app.get("/download/{file_path:path}")
 async def download_file(file_path: str):
-    """Download a generated document."""
-    path = Path(file_path)
-    if not path.is_absolute():
-        path = Path.cwd() / path
+    """Download a generated document.
+
+    Only files located within the application working directory are served to
+    prevent path traversal.
+    """
+    base = Path.cwd().resolve()
+    path = (base / file_path).resolve()
+    try:
+        path.relative_to(base)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Access denied") from exc
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path)
