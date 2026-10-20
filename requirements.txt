@@ -38,7 +38,7 @@ multidict==6.1.0
 networkx==3.2.1
 numpy==2.0.2
 openai==1.55.2
-packaging==24.2
+packaging==26.3
 pathspec==0.12.1
 propcache==0.2.1
 pycparser==2.22
