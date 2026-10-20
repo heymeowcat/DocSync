@@ -1,13 +1,21 @@
-from github import Github
-import gitlab
+from __future__ import annotations
+
 import os
-from typing import Dict, Any, Optional
+
+import gitlab
 from fastapi import HTTPException
+from github import Auth, Github
+
+from config import settings
+
 
 class VCSIntegration:
     def __init__(self):
-        self.github = Github(os.getenv("GITHUB_ACCESS_TOKEN"))
-        self.gitlab = gitlab.Gitlab('https://gitlab.com', private_token=os.getenv("GITLAB_ACCESS_TOKEN"))
+        self.github = Github(auth=Auth.Token(settings.github_access_token or os.getenv("GITHUB_ACCESS_TOKEN", "")))
+        self.gitlab = gitlab.Gitlab(
+            "https://gitlab.com",
+            private_token=settings.gitlab_access_token or os.getenv("GITLAB_ACCESS_TOKEN", ""),
+        )
 
     async def connect_github(self, repo_url: str) -> Dict[str, Any]:
         try:
