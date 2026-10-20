@@ -4,10 +4,9 @@ import os
 from typing import Any
 
 import gitlab
+from config import settings
 from fastapi import HTTPException
 from github import Auth, Github
-
-from config import settings
 
 
 class VCSIntegration:
