@@ -94,7 +94,7 @@ def get_git_history(repo_path):
             )
         return commits
     except Exception as e:
-        print(f"Error getting git history: {e}")
+        logger.warning("Error getting git history: %s", e)
         return []
 
 
@@ -111,7 +111,7 @@ def markdown_to_docx(markdown_content, output_path):
         )
         return True
     except Exception as e:
-        print(f"Error converting markdown to docx: {e}")
+        logger.warning("Error converting markdown to docx: %s", e)
         return False
 
 
@@ -316,7 +316,7 @@ def analyze_directory(
                         result["dir_count"] += 1 + subdir["dir_count"]
                         result["text_content_size"] += subdir["text_content_size"]
     except PermissionError:
-        print(f"Permission denied: {path}")
+        logger.warning("Permission denied: %s", path)
 
     return result
 
@@ -384,7 +384,7 @@ def count_tokens(text):
     try:
         return len(enc.encode(text, disallowed_special=()))
     except Exception as e:
-        print(f"Warning: Error counting tokens: {str(e)}")
+        logger.warning("Error counting tokens: %s", e)
         return 0
 
 
