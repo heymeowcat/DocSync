@@ -59,8 +59,14 @@ def cmd_review(args) -> int:
                         pass
 
     diff = diff_text(base, head, cwd=str(repo))
+    spec = None
+    if args.spec:
+        try:
+            spec = Path(args.spec).read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"Could not read spec: {exc}", file=sys.stderr)
     client = make_client(config)
-    analysis = analyze_drift(client, config, changed_paths, diff, candidate_docs)
+    analysis = analyze_drift(client, config, changed_paths, diff, candidate_docs, spec=spec)
 
     report = build_report(changed_paths, affected, analysis)
     out = Path(args.output)
@@ -88,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     p_review.add_argument("--config", default=None, help="Config file path")
     p_review.add_argument("--output", default="docsync-report.md", help="Output report path")
     p_review.add_argument("--fail-on-drift", action="store_true", help="Exit non-zero if drift detected")
+    p_review.add_argument("--spec", default=None, help="Path to a spec/ticket file for gap analysis")
     p_review.set_defaults(func=cmd_review)
 
     args = parser.parse_args(argv)

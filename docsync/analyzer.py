@@ -21,7 +21,7 @@ def make_client(config) -> Any:
         return None
 
 
-def analyze_drift(client, config, changed_files: list[str], diff: str, candidate_docs: dict[str, str]) -> str:
+def analyze_drift(client, config, changed_files: list[str], diff: str, candidate_docs: dict[str, str], spec: str | None = None) -> str:
     """Ask the LLM which docs are affected and what should change."""
     if client is None:
         return _heuristic_report(changed_files, candidate_docs)
@@ -33,6 +33,7 @@ def analyze_drift(client, config, changed_files: list[str], diff: str, candidate
         "You are a documentation maintainer. Given a code diff and candidate "
         "documentation files, identify which docs are stale or need updates, "
         "and propose concrete edits.\n\n"
+        ("Specification/ticket:\n" + spec + "\n\n" if spec else "") +
         "Changed files:\n" + "\n".join(f"- {p}" for p in changed_files) + "\n\n"
         "Diff:\n```diff\n" + diff[:12000] + "\n```\n\n"
         "Candidate docs:\n" + docs_block + "\n\n"
