@@ -203,8 +203,8 @@ async def coverage():
 
 @app.get("/dashboard")
 async def dashboard():
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse("<h1>DocSync Dashboard</h1><p>See /reports and /coverage</p>")
+    from fastapi.responses import FileResponse
+    return FileResponse("static/dashboard.html")
 
 @app.get("/")
 async def root():
