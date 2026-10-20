@@ -33,7 +33,10 @@ def test_count_tokens_nonempty():
 
 
 def test_format_prompt_name():
-    assert format_prompt_name("architecture_layer_identification.md") == "Architecture Layer Identification"
+    assert (
+        format_prompt_name("architecture_layer_identification.md")
+        == "Architecture Layer Identification"
+    )
 
 
 def test_load_prompts_returns_dict():

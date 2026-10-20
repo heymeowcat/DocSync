@@ -1,17 +1,21 @@
+import json
+import os
+from xml.etree import ElementTree as ET
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import os
-import json
-from xml.etree import ElementTree as ET
-from utils import generate_lld_from_directory 
+
+from utils import generate_lld_from_directory
 
 router = APIRouter()
+
 
 class GenerateLLDRequest(BaseModel):
     project_path: str
     selected_files: list[str]
     enabled_prompts: dict[str, bool]
     output_format: str = "markdown"
+
 
 @router.post("/generate_lld")
 async def generate_lld(request: GenerateLLDRequest):
@@ -28,7 +32,7 @@ async def generate_lld(request: GenerateLLDRequest):
         lld_path, lld_content = generate_lld_from_directory(
             repo_path=request.project_path,
             selected_files=request.selected_files,
-            enabled_prompts=request.enabled_prompts
+            enabled_prompts=request.enabled_prompts,
         )
 
         if not lld_path or not lld_content:
@@ -37,14 +41,12 @@ async def generate_lld(request: GenerateLLDRequest):
         # Save the document based on the selected format
         saved_file_path = save_lld_document(lld_content, request.output_format)
 
-        return {
-            "lld_path": saved_file_path,
-            "markdown_output": lld_content
-        }
+        return {"lld_path": saved_file_path, "markdown_output": lld_content}
     except HTTPException:
         raise  # Re-raise FastAPI HTTP exceptions
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating LLD: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating LLD: {str(e)}") from e
+
 
 def save_lld_document(content, output_format):
     """Save the LLD document in the specified format."""
