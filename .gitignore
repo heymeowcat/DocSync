@@ -1,6 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
 
-/myenv
+# Virtual environments
+.venv/
+myenv/
+venv/
+env/
+
+# Environment / secrets
 .env
-/__pycache__
-/__pycache__
-/__pycache__
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# App runtime artifacts
+output/
+*.docx
+__pycache__/
+
+# Logs
+*.log
