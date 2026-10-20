@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 import jwt
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
 from config import settings
@@ -34,8 +34,7 @@ async def github_login():
     if not settings.github_client_id:
         raise HTTPException(status_code=503, detail="GitHub OAuth is not configured")
     return RedirectResponse(
-        "https://github.com/login/oauth/authorize"
-        f"?client_id={settings.github_client_id}&scope=repo"
+        f"https://github.com/login/oauth/authorize?client_id={settings.github_client_id}&scope=repo"
     )
 
 
