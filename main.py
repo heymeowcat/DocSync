@@ -72,6 +72,20 @@ async def process_pull_request(payload: dict) -> None:
         report = build_report(changed_paths, affected, analysis)
 
         # Post as PR comment
+        # Inline per-file comments on the diff.
+        pr_obj = repo.get_pull(pr_number)
+        for f in comparison.files:
+            if f.filename in affected:
+                docs = affected[f.filename]
+                try:
+                    pr_obj.create_review_comment(
+                        body=f"DocSync: this change may affect `{', '.join(docs)}`. Review suggested.",
+                        commit=repo.get_commit(head_sha),
+                        path=f.filename,
+                        position=1,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
         repo.get_issue(pr_number).create_comment(report[:65000])
         conclusion = "success" if not affected else "neutral"
         gh_app.create_check_run(repo, head_sha, "DocSync", conclusion, report[:65000])
