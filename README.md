@@ -1,8 +1,7 @@
 # DocSync
 
 **Keep documentation in sync with code.** DocSync is a CI-native tool that
-analyzes pull requests, detects documentation drift, and proposes updates — like
-CodeRabbit, but for documentation.
+analyzes pull requests, detects documentation drift, and proposes updates.
 
 ## Why
 
