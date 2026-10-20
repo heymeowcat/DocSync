@@ -13,6 +13,7 @@ DEFAULT_CONFIG = {
     "docs_paths": ["docs", "README.md", "CHANGELOG.md"],
     "ignore": ["*.lock", "node_modules", ".git"],
     "threshold": 0.0,
+    "auto_fix": False,
     "provider": "openrouter",
     "model": "cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
     "base_url": "",
@@ -26,6 +27,7 @@ class Config:
     docs_paths: list[str] = field(default_factory=lambda: list(DEFAULT_CONFIG["docs_paths"]))
     ignore: list[str] = field(default_factory=lambda: list(DEFAULT_CONFIG["ignore"]))
     threshold: float = 0.0
+    auto_fix: bool = False
     provider: str = DEFAULT_CONFIG["provider"]
     model: str = DEFAULT_CONFIG["model"]
     base_url: str = DEFAULT_CONFIG["base_url"]
