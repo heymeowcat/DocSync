@@ -52,7 +52,7 @@ python-docx==1.1.2
 python-dotenv==1.0.1
 python-multipart==0.0.22
 PyYAML==6.0.2
-regex==2024.11.6
+regex==2026.9.29
 requests==2.32.4
 safetensors==0.4.5
 sentencepiece==0.2.1
