@@ -7,10 +7,9 @@ from datetime import datetime, timedelta
 
 import jwt
 import requests
+from config import settings
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
-
-from config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -21,11 +21,10 @@ except ImportError:  # pragma: no cover - optional dependency
             return ""
 
     Fore = Style = _NoColor()
+from config import settings
 from dotenv import load_dotenv
 from git import Repo
 from openai import OpenAI
-
-from config import settings
 
 load_dotenv(join(dirname(__file__), ".env"))
 

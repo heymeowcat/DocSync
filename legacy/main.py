@@ -6,14 +6,13 @@ import logging
 from pathlib import Path
 
 import uvicorn
+from config import settings
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from github import Auth, Github, GithubException
-
-from config import settings
 from integrations.vcs import VCSIntegration
 from routes import auth, dashboard, generate_lld, scan_project
 
