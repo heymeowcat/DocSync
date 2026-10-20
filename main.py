@@ -72,6 +72,8 @@ async def process_pull_request(payload: dict) -> None:
 
         # Post as PR comment
         repo.get_issue(pr_number).create_comment(report[:65000])
+        conclusion = "success" if not affected else "neutral"
+        gh_app.create_check_run(repo, head_sha, "DocSync", conclusion, report[:65000])
         logger.info("Posted DocSync report to %s#%s", repo_full, pr_number)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to process PR %s#%s: %s", repo_full, pr_number, exc)

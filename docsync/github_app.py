@@ -54,6 +54,18 @@ class GitHubApp:
         expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
 
+    def create_check_run(self, repo, head_sha: str, name: str, conclusion: str, summary: str) -> None:
+        try:
+            repo.create_check_run(
+                name=name,
+                head_sha=head_sha,
+                status="completed",
+                conclusion=conclusion,
+                output={"title": name, "summary": summary[:65000]},
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not create check run: %s", exc)
+
     def handle_event(self, event: str, payload: dict[str, Any]) -> dict[str, Any]:
         if event == "pull_request" and payload.get("action") in {"opened", "synchronize", "reopened"}:
             return {"status": "queued", "pr": payload["pull_request"]["number"]}
